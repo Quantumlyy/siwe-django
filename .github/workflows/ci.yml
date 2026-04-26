@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python-version: "3.10"
+            django: "5.2.*"
+          - python-version: "3.12"
+            django: "5.2.*"
+          - python-version: "3.12"
+            django: "6.0.*"
+          - python-version: "3.13"
+            django: "6.0.*"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          uv sync --extra drf --group dev --python ${{ matrix.python-version }}
+          uv pip install "Django==${{ matrix.django }}"
+      - name: Ruff
+        run: uv run ruff check
+      - name: Tests
+        run: uv run pytest
+      - name: Build
+        run: uv run python -m build
