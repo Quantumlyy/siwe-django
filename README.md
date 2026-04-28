@@ -109,8 +109,18 @@ that:
 - the signed `Request ID` matches the bound value,
 - the signed `Not Before` matches the bound timestamp.
 
-Smart contract wallets that sign via EIP-1271 or counterfactually via EIP-6492
-work as long as `RPC_URLS` contains a provider for the wallet's chain.
+### Smart contract wallets
+
+`siwe-django` verifies smart contract wallet signatures via:
+
+- **EIP-1271** for already-deployed contract wallets (Safe, multisigs, …).
+- **EIP-6492** for counterfactual wallets that have not yet been deployed
+  (Coinbase Smart Wallet, Privy, …). The upstream `signinwithethereum`
+  library calls the EIP-6492 universal validator over `eth_call` so we never
+  need a deployed contract.
+
+Both paths require `RPC_URLS` to contain a provider for the wallet's chain.
+Without it the contract check fails and the request is rejected.
 
 ## Showcase Demo
 
