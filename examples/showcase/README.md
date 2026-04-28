@@ -43,6 +43,14 @@ Open `http://localhost:5173`. Vite proxies `/auth/siwe/` and
 `/api/showcase/` to Django at `http://127.0.0.1:8000`, so no CORS package is
 needed.
 
+If port `8000` is already in use, run Django on another port and point Vite at
+it:
+
+```bash
+uv run python manage.py runserver 127.0.0.1:8001
+VITE_SHOWCASE_BACKEND_URL=http://127.0.0.1:8001 npm run dev
+```
+
 ## Build Checks
 
 ```bash
