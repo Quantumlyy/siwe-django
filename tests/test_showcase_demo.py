@@ -28,7 +28,7 @@ def demo_urls_settings():
 
 def test_showcase_settings_import():
     assert demo_settings.SIWE_DJANGO["DOMAIN"] == "localhost:5173"
-    assert demo_settings.SIWE_DJANGO["URI"] == "http://localhost:5173/"
+    assert demo_settings.SIWE_DJANGO["URI"] == "http://localhost:5173"
     assert demo_settings.SIWE_DJANGO["TOKEN_GATES"][0]["group"] == "demo-holders"
 
 

@@ -133,7 +133,7 @@ def _rpc_urls() -> dict[int, str]:
 
 SIWE_DJANGO = {
     "DOMAIN": os.getenv("SIWE_DEMO_DOMAIN", "localhost:5173"),
-    "URI": os.getenv("SIWE_DEMO_URI", "http://localhost:5173/"),
+    "URI": os.getenv("SIWE_DEMO_URI", "http://localhost:5173"),
     "STATEMENT": "Sign in to the siwe-django showcase.",
     "ALLOWED_CHAIN_IDS": [1, 11155111, 31337],
     "AUTO_CREATE_USERS": True,

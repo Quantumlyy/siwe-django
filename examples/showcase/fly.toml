@@ -27,7 +27,7 @@ primary_region = "lhr"
   SIWE_DEMO_ALLOWED_HOSTS = "siwe-django-showcase.fly.dev"
   SIWE_DEMO_CSRF_TRUSTED_ORIGINS = "https://siwe-django-showcase.fly.dev"
   SIWE_DEMO_DOMAIN = "siwe-django-showcase.fly.dev"
-  SIWE_DEMO_URI = "https://siwe-django-showcase.fly.dev/"
+  SIWE_DEMO_URI = "https://siwe-django-showcase.fly.dev"
   SIWE_DEMO_ETHID_ENABLED = "true"
 
 [[mounts]]
