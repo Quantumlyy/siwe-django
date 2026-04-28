@@ -67,6 +67,14 @@ def _fetch_json(path: str, *, fresh: bool | None = None) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
+def _fetch_profile_part(path: str, *, fresh: bool | None = None) -> dict[str, Any]:
+    try:
+        return _fetch_json(path, fresh=fresh)
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError):
+        logger.exception("EthID profile part lookup failed for %s.", path)
+        return {}
+
+
 def _as_int(value: Any) -> int:
     try:
         return int(value or 0)
@@ -128,13 +136,9 @@ def fetch_ethid_profile(
     address_or_name: str, *, fresh: bool | None = None
 ) -> EthIDProfile:
     encoded = quote(address_or_name, safe="")
-    try:
-        simple = _fetch_json(f"users/{encoded}/simple-profile", fresh=fresh)
-        details = _fetch_json(f"users/{encoded}/details", fresh=fresh)
-        ens = _fetch_json(f"users/{encoded}/ens", fresh=fresh)
-    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError):
-        logger.exception("EthID profile lookup failed for %s.", address_or_name)
-        return EthIDProfile()
+    simple = _fetch_profile_part(f"users/{encoded}/simple-profile", fresh=fresh)
+    details = _fetch_profile_part(f"users/{encoded}/details", fresh=fresh)
+    ens = _fetch_profile_part(f"users/{encoded}/ens", fresh=fresh)
     return _merge_profile(simple, details, ens)
 
 

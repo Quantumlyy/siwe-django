@@ -94,3 +94,37 @@ def test_nonce_rate_limit(client):
 
     assert response.status_code == 429
     assert response.json()["error"] == "rate_limited"
+
+
+@pytest.mark.django_db
+@override_settings(SIWE_DJANGO={"RATE_LIMITS": {"nonce": "1/m"}})
+def test_nonce_rate_limit_ignores_x_forwarded_for_by_default(client):
+    cache.clear()
+
+    assert (
+        client.get("/siwe/nonce/", HTTP_X_FORWARDED_FOR="203.0.113.10").status_code
+        == 200
+    )
+    response = client.get("/siwe/nonce/", HTTP_X_FORWARDED_FOR="203.0.113.11")
+
+    assert response.status_code == 429
+    assert response.json()["error"] == "rate_limited"
+
+
+@pytest.mark.django_db
+@override_settings(
+    SIWE_DJANGO={
+        "RATE_LIMITS": {"nonce": "1/m"},
+        "RATE_LIMIT_TRUST_X_FORWARDED_FOR": True,
+    }
+)
+def test_nonce_rate_limit_can_trust_x_forwarded_for(client):
+    cache.clear()
+
+    assert (
+        client.get("/siwe/nonce/", HTTP_X_FORWARDED_FOR="203.0.113.10").status_code
+        == 200
+    )
+    response = client.get("/siwe/nonce/", HTTP_X_FORWARDED_FOR="203.0.113.11")
+
+    assert response.status_code == 200

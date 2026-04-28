@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout as auth_logout
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -32,6 +34,7 @@ def _error(error: SiweAuthError) -> Response:
     )
 
 
+@method_decorator(ensure_csrf_cookie, name="dispatch")
 class NonceView(APIView):
     authentication_classes = []
     permission_classes = []
@@ -50,6 +53,7 @@ class NonceView(APIView):
         )
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class VerifyView(APIView):
     authentication_classes = []
     permission_classes = []

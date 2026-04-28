@@ -1,10 +1,13 @@
+from urllib.error import HTTPError
+
 import pytest
 from django.test import override_settings
 
 from siwe_django.ens import ENSProfile
-from siwe_django.ethid import EthIDProfile
+from siwe_django.ethid import EthIDProfile, fetch_ethid_profile
 from siwe_django.gates import sync_wallet_groups
-from siwe_django.models import SiweWallet
+from siwe_django.models import EthereumUser, SiweWallet
+from siwe_django.services import SiweIdentity, _update_user_identity_fields
 
 from .helpers import post_json, signed_payload
 
@@ -151,3 +154,72 @@ def test_public_profile_endpoint_uses_ethid(client, mocker):
     assert response.json()["profile"]["displayName"] == "vitalik.eth"
     assert response.json()["profile"]["ens"]["records"] == {"name": "Vitalik"}
     mock.assert_called_once_with("vitalik.eth", fresh=True)
+
+
+@pytest.mark.django_db
+@override_settings(
+    SIWE_DJANGO={
+        "ETHID_ENABLED": True,
+        "ETHID_PROFILE_PROXY_ENABLED": False,
+    }
+)
+def test_public_profile_endpoint_respects_proxy_setting(client, mocker):
+    mock = mocker.patch("siwe_django.services.fetch_ethid_profile")
+
+    response = client.get("/siwe/profile/vitalik.eth/")
+
+    assert response.status_code == 404
+    assert response.json()["error"] == "siwe_error"
+    mock.assert_not_called()
+
+
+def test_ethid_profile_keeps_partial_data_when_endpoint_404s(mocker):
+    def fake_fetch(path, *, fresh=None):
+        if path.endswith("/details"):
+            raise HTTPError(
+                url="https://example.com/details",
+                code=404,
+                msg="Not Found",
+                hdrs=None,
+                fp=None,
+            )
+        if path.endswith("/simple-profile"):
+            return {
+                "address": "0x0000000000000000000000000000000000000001",
+                "display_name": "alice.eth",
+                "avatar": "https://example.com/avatar.png",
+                "followers_count": 12,
+            }
+        return {"ens": {"name": "alice.eth", "records": {"com.github": "alice"}}}
+
+    mocker.patch("siwe_django.ethid._fetch_json", side_effect=fake_fetch)
+
+    profile = fetch_ethid_profile("alice.eth")
+
+    assert profile.address == "0x0000000000000000000000000000000000000001"
+    assert profile.display_name == "alice.eth"
+    assert profile.followers_count == 12
+    assert profile.ens_records == {"com.github": "alice"}
+    assert profile.raw["details"] == {}
+
+
+@pytest.mark.django_db
+def test_user_identity_counts_survive_missing_profile_payload():
+    user = EthereumUser.objects.create_user(
+        ethereum_address="0x0000000000000000000000000000000000000001",
+        identity_profile={"simple_profile": {"display_name": "alice.eth"}},
+        followers_count=25,
+        following_count=7,
+    )
+    identity = SiweIdentity(
+        address="0x0000000000000000000000000000000000000001",
+        chain_id=1,
+        caip10="eip155:1:0x0000000000000000000000000000000000000001",
+    )
+
+    _update_user_identity_fields(user, identity)
+
+    user.refresh_from_db()
+    assert user.identity_profile == {"simple_profile": {"display_name": "alice.eth"}}
+    assert user.followers_count == 25
+    assert user.following_count == 7

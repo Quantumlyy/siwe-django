@@ -22,6 +22,7 @@ DEFAULTS: dict[str, Any] = {
     "AUTO_CREATE_USERS": True,
     "USER_FACTORY": "siwe_django.services.default_user_factory",
     "RATE_LIMITS": {},
+    "RATE_LIMIT_TRUST_X_FORWARDED_FOR": False,
     "TOKEN_GATES": [],
     "SYNC_TOKEN_GATES_ON_LOGIN": True,
 }

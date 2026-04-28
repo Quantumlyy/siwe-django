@@ -152,7 +152,7 @@ const { handleSignIn } = useSiwe({
     const data = await response.json();
     return data.nonce;
   },
-  verifySignature: async (message, signature) => {
+  verifySignature: async (message, _nonce, signature) => {
     const response = await fetch("/auth/siwe/verify/", {
       method: "POST",
       credentials: "include",
@@ -208,6 +208,7 @@ All settings live under `SIWE_DJANGO`.
 | `AUTO_CREATE_USERS` | `True` | Create a user when a new wallet signs in. |
 | `USER_FACTORY` | built-in | Dotted path for custom user creation. |
 | `RATE_LIMITS` | `{}` | Optional per-view limits like `{ "verify": "5/m" }`. |
+| `RATE_LIMIT_TRUST_X_FORWARDED_FOR` | `False` | Use the first `X-Forwarded-For` address for rate limits. Enable only behind a trusted proxy that strips client-supplied forwarding headers. |
 | `TOKEN_GATES` | `[]` | Optional group sync gates. |
 | `SYNC_TOKEN_GATES_ON_LOGIN` | `True` | Sync token gates after login/linking. |
 
