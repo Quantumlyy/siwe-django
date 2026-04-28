@@ -19,6 +19,16 @@ For the optional DRF views:
 pip install "siwe-django[drf]"
 ```
 
+For the setup wizard CLI:
+
+```bash
+pip install "siwe-django[cli]"
+siwe-django init        # patch settings.py + urls.py + drop a template
+siwe-django doctor      # diagnose an existing install (CI-friendly --json)
+siwe-django scaffold-templates  # add the bundled sign-in template
+siwe-django migrate-from-payton # rewrite payton/django-siwe-auth references
+```
+
 ## Configure
 
 ```python

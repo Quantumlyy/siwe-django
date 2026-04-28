@@ -34,6 +34,16 @@ dependencies = [
 
 [project.optional-dependencies]
 drf = ["djangorestframework>=3.16"]
+cli = [
+  "typer>=0.12",
+  "questionary>=2.0",
+  "rich>=13.7",
+  "libcst>=1.4",
+  "tomlkit>=0.13",
+]
+
+[project.scripts]
+siwe-django = "siwe_django.cli.main:app"
 
 [project.urls]
 Homepage = "https://github.com/Quantumlyy/siwe-django"
@@ -45,10 +55,15 @@ dev = [
   "build>=1.2",
   "djangorestframework>=3.16",
   "eth-account>=0.13",
+  "libcst>=1.4",
   "pytest>=8.1",
   "pytest-django>=4.8",
   "pytest-mock>=3.14",
+  "questionary>=2.0",
+  "rich>=13.7",
   "ruff>=0.6",
+  "tomlkit>=0.13",
+  "typer>=0.12",
 ]
 
 [build-system]
@@ -74,3 +89,4 @@ ignore = ["RUF012"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["PT009"]
+"src/siwe_django/cli/main.py" = ["B008", "UP007"]
