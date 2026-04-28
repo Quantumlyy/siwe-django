@@ -1,6 +1,7 @@
 import pytest
 from rest_framework.test import APIClient
 
+from siwe_django.ethid import EthIDProfile
 from siwe_django.models import SiweWallet
 
 from .helpers import build_message, sign_message
@@ -32,3 +33,20 @@ def test_drf_me_requires_authentication():
     response = client.get("/siwe-drf/me/")
 
     assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_drf_profile_endpoint(mocker):
+    client = APIClient()
+    mocker.patch(
+        "siwe_django.services.fetch_ethid_profile",
+        return_value=EthIDProfile(
+            address="0x0000000000000000000000000000000000000001",
+            display_name="alice.eth",
+        ),
+    )
+
+    response = client.get("/siwe-drf/profile/alice.eth/")
+
+    assert response.status_code == 200
+    assert response.json()["profile"]["displayName"] == "alice.eth"

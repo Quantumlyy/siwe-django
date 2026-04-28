@@ -10,6 +10,8 @@ from siwe_django.models import SiweWallet
 from siwe_django.services import (
     SiweAuthError,
     authenticate_siwe,
+    eth_identity_kit_nonce_payload,
+    get_public_identity_profile,
     issue_nonce,
     link_siwe_wallet,
     primary_wallet_for_user,
@@ -43,6 +45,7 @@ class NonceView(APIView):
                 "domain": nonce.domain,
                 "uri": nonce.uri,
                 "statement": get_setting("STATEMENT"),
+                "ethereumIdentityKit": eth_identity_kit_nonce_payload(nonce),
             }
         )
 
@@ -146,3 +149,16 @@ class WalletDetailView(APIView):
         except SiweAuthError as exc:
             return _error(exc)
         return Response({"success": True})
+
+
+class ProfileView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request, address_or_name: str):
+        fresh = request.query_params.get("fresh") in {"1", "true", "yes"}
+        try:
+            profile = get_public_identity_profile(address_or_name, fresh=fresh)
+        except SiweAuthError as exc:
+            return _error(exc)
+        return Response({"success": True, "profile": profile})

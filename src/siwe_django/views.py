@@ -15,6 +15,8 @@ from .models import SiweWallet
 from .services import (
     SiweAuthError,
     authenticate_siwe,
+    eth_identity_kit_nonce_payload,
+    get_public_identity_profile,
     issue_nonce,
     link_siwe_wallet,
     primary_wallet_for_user,
@@ -103,6 +105,7 @@ def nonce(request: HttpRequest) -> JsonResponse:
             "domain": nonce_obj.domain,
             "uri": nonce_obj.uri,
             "statement": get_setting("STATEMENT"),
+            "ethereumIdentityKit": eth_identity_kit_nonce_payload(nonce_obj),
         }
     )
 
@@ -192,6 +195,17 @@ def wallets(request: HttpRequest) -> JsonResponse:
             ],
         }
     )
+
+
+@rate_limit("profile")
+@require_http_methods(["GET"])
+def profile(request: HttpRequest, address_or_name: str) -> JsonResponse:
+    fresh = request.GET.get("fresh") in {"1", "true", "yes"}
+    try:
+        profile_data = get_public_identity_profile(address_or_name, fresh=fresh)
+    except SiweAuthError as exc:
+        return _error_response(exc)
+    return JsonResponse({"success": True, "profile": profile_data})
 
 
 @csrf_protect

@@ -12,6 +12,7 @@ from siwe import SiweMessage, VerificationError, generate_nonce
 from web3 import HTTPProvider
 
 from .ens import resolve_ens_profile
+from .ethid import fetch_ethid_profile, serialize_ethid_profile
 from .gates import sync_wallet_groups
 from .models import SiweNonce, SiweWallet, caip10_subject, checksum_address
 from .settings import allowed_chain_ids, get_setting
@@ -59,6 +60,15 @@ class SiweIdentity:
     caip10: str
     ens_name: str = ""
     ens_avatar: str = ""
+    ens_description: str = ""
+    ens_header: str = ""
+    ens_records: dict[str, Any] | None = None
+    identity_display_name: str = ""
+    identity_avatar: str = ""
+    identity_url: str = ""
+    identity_profile: dict[str, Any] | None = None
+    followers_count: int = 0
+    following_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -174,6 +184,15 @@ def verify_siwe_message(message: str, signature: str, request=None) -> SiweIdent
         caip10=caip10_subject(chain_id, address),
         ens_name=ens_profile.name,
         ens_avatar=ens_profile.avatar,
+        ens_description=ens_profile.description,
+        ens_header=ens_profile.header,
+        ens_records=ens_profile.records or {},
+        identity_display_name=ens_profile.display_name,
+        identity_avatar=ens_profile.identity_avatar,
+        identity_url=ens_profile.identity_url,
+        identity_profile=ens_profile.raw or {},
+        followers_count=ens_profile.followers_count,
+        following_count=ens_profile.following_count,
     )
 
 
@@ -215,8 +234,21 @@ def _update_user_identity_fields(user, identity: SiweIdentity) -> None:
         ("chain_id", identity.chain_id),
         ("ens_name", identity.ens_name),
         ("ens_avatar", identity.ens_avatar),
+        ("ens_description", identity.ens_description),
+        ("ens_header", identity.ens_header),
+        ("ens_records", identity.ens_records or {}),
+        ("identity_display_name", identity.identity_display_name),
+        ("identity_avatar", identity.identity_avatar),
+        ("identity_url", identity.identity_url),
+        ("identity_profile", identity.identity_profile or {}),
+        ("followers_count", identity.followers_count),
+        ("following_count", identity.following_count),
     ):
-        if hasattr(user, field) and value and getattr(user, field) != value:
+        if (
+            hasattr(user, field)
+            and value not in ("", None)
+            and getattr(user, field) != value
+        ):
             setattr(user, field, value)
             changed.append(field)
     if changed:
@@ -231,16 +263,54 @@ def _create_wallet(user, identity: SiweIdentity) -> SiweWallet:
         chain_id=identity.chain_id,
         ens_name=identity.ens_name,
         ens_avatar=identity.ens_avatar,
+        ens_description=identity.ens_description,
+        ens_header=identity.ens_header,
+        ens_records=identity.ens_records or {},
+        identity_display_name=identity.identity_display_name,
+        identity_avatar=identity.identity_avatar,
+        identity_url=identity.identity_url,
+        identity_profile=identity.identity_profile or {},
+        followers_count=identity.followers_count,
+        following_count=identity.following_count,
         is_primary=is_primary,
         last_login=timezone.now(),
     )
 
 
 def _update_wallet(wallet: SiweWallet, identity: SiweIdentity) -> SiweWallet:
+    has_identity_profile = bool(identity.identity_profile)
     wallet.last_login = timezone.now()
     wallet.ens_name = identity.ens_name or wallet.ens_name
     wallet.ens_avatar = identity.ens_avatar or wallet.ens_avatar
-    wallet.save(update_fields=["last_login", "ens_name", "ens_avatar", "updated_at"])
+    wallet.ens_description = identity.ens_description or wallet.ens_description
+    wallet.ens_header = identity.ens_header or wallet.ens_header
+    wallet.ens_records = identity.ens_records or wallet.ens_records
+    wallet.identity_display_name = (
+        identity.identity_display_name or wallet.identity_display_name
+    )
+    wallet.identity_avatar = identity.identity_avatar or wallet.identity_avatar
+    wallet.identity_url = identity.identity_url or wallet.identity_url
+    wallet.identity_profile = identity.identity_profile or wallet.identity_profile
+    if has_identity_profile:
+        wallet.followers_count = identity.followers_count
+        wallet.following_count = identity.following_count
+    wallet.save(
+        update_fields=[
+            "last_login",
+            "ens_name",
+            "ens_avatar",
+            "ens_description",
+            "ens_header",
+            "ens_records",
+            "identity_display_name",
+            "identity_avatar",
+            "identity_url",
+            "identity_profile",
+            "followers_count",
+            "following_count",
+            "updated_at",
+        ]
+    )
     return wallet
 
 
@@ -317,6 +387,12 @@ def serialize_user(user) -> dict[str, Any]:
 
 
 def serialize_wallet(wallet: SiweWallet) -> dict[str, Any]:
+    display_name = (
+        wallet.identity_display_name
+        or wallet.ens_name
+        or f"{wallet.address[:6]}...{wallet.address[-4:]}"
+    )
+    avatar = wallet.identity_avatar or wallet.ens_avatar
     return {
         "id": wallet.pk,
         "address": wallet.address,
@@ -324,6 +400,27 @@ def serialize_wallet(wallet: SiweWallet) -> dict[str, Any]:
         "caip10": wallet.caip10,
         "ensName": wallet.ens_name,
         "ensAvatar": wallet.ens_avatar,
+        "displayName": display_name,
+        "avatar": avatar,
+        "profile": {
+            "displayName": display_name,
+            "avatar": avatar,
+            "url": wallet.identity_url,
+            "followersCount": wallet.followers_count,
+            "followingCount": wallet.following_count,
+            "ens": {
+                "name": wallet.ens_name,
+                "avatar": wallet.ens_avatar,
+                "description": wallet.ens_description,
+                "header": wallet.ens_header,
+                "records": wallet.ens_records,
+            },
+            "ethIdentityKit": wallet.identity_profile,
+        },
+        "ethereumIdentityKit": {
+            "addressOrName": wallet.ens_name or wallet.address,
+            "profileUrl": wallet.identity_url,
+        },
         "isPrimary": wallet.is_primary,
         "lastLogin": wallet.last_login.isoformat() if wallet.last_login else None,
     }
@@ -331,3 +428,27 @@ def serialize_wallet(wallet: SiweWallet) -> dict[str, Any]:
 
 def primary_wallet_for_user(user) -> SiweWallet | None:
     return SiweWallet.objects.filter(user=user, is_primary=True).first()
+
+
+def eth_identity_kit_nonce_payload(nonce: SiweNonce) -> dict[str, Any]:
+    return {
+        "statement": get_setting("STATEMENT"),
+        "expirationTime": int(get_setting("NONCE_TTL_SECONDS")) * 1000,
+        "messageParams": {
+            "domain": nonce.domain,
+            "uri": nonce.uri,
+            "version": "1",
+            "nonce": nonce.nonce,
+        },
+    }
+
+
+def get_public_identity_profile(
+    address_or_name: str, *, fresh: bool | None = None
+) -> dict[str, Any]:
+    if not (get_setting("ETHID_ENABLED") or get_setting("ETHID_PROFILE_PROXY_ENABLED")):
+        raise SiweAuthError("EthID profile lookups are disabled.", status_code=404)
+    profile = fetch_ethid_profile(address_or_name, fresh=fresh)
+    if profile.is_empty:
+        raise SiweAuthError("Identity profile not found.", status_code=404)
+    return serialize_ethid_profile(profile)

@@ -22,12 +22,25 @@ def test_verify_logs_in_and_creates_user_wallet(client, django_user_model):
     body = response.json()
     assert body["success"] is True
     assert body["wallet"]["address"] == payload["account"].address
+    assert body["wallet"]["displayName"].startswith("0x")
+    assert "ethereumIdentityKit" in body["wallet"]
     assert django_user_model.objects.count() == 1
     assert SiweWallet.objects.count() == 1
 
     me = client.get("/siwe/me/")
     assert me.status_code == 200
     assert me.json()["wallet"]["caip10"].startswith("eip155:1:")
+
+
+@pytest.mark.django_db
+def test_nonce_response_includes_eth_identity_kit_metadata(client):
+    response = client.get("/siwe/nonce/")
+
+    assert response.status_code == 200
+    metadata = response.json()["ethereumIdentityKit"]
+    assert metadata["statement"] == "Sign in with Ethereum."
+    assert metadata["expirationTime"] == 300000
+    assert metadata["messageParams"]["nonce"] == response.json()["nonce"]
 
 
 @pytest.mark.django_db

@@ -10,8 +10,13 @@ def subject_for_wallet(chain_id: int, address: str) -> str:
 def claims_for_wallet(wallet: SiweWallet, *, include_siwe: dict | None = None) -> dict:
     claims = {
         "sub": wallet.caip10,
-        "preferred_username": wallet.ens_name or wallet.address,
-        "picture": wallet.ens_avatar or "",
+        "preferred_username": wallet.identity_display_name
+        or wallet.ens_name
+        or wallet.address,
+        "picture": wallet.identity_avatar or wallet.ens_avatar or "",
+        "profile": wallet.identity_url or "",
+        "followers_count": wallet.followers_count,
+        "following_count": wallet.following_count,
     }
     if include_siwe:
         claims["siwe_message"] = include_siwe.get("message", "")

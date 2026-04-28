@@ -16,4 +16,9 @@ urlpatterns = [
         views.WalletDetailView.as_view(),
         name="wallet_detail",
     ),
+    path(
+        "profile/<str:address_or_name>/",
+        views.ProfileView.as_view(),
+        name="profile",
+    ),
 ]
