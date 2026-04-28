@@ -2,10 +2,12 @@
 
 Reusable Django authentication for Sign-In with Ethereum (SIWE / EIP-4361).
 
-`siwe-django` provides a nonce-based SIWE login flow, session login, wallet
-linking for existing Django users, an optional Ethereum-native user model,
-optional Django REST Framework views, ENS and Ethereum Identity Kit profile
-enrichment, and token-gated Django group sync.
+`siwe-django` is a reusable Django app: install it into an existing Django
+project, mount its URLs where you want them, and keep control of your own UI.
+It provides a nonce-based SIWE login flow, session login, wallet linking for
+existing Django users, an optional Ethereum-native user model, optional Django
+REST Framework views, ENS and Ethereum Identity Kit profile enrichment, and
+token-gated Django group sync.
 
 ## Install
 
@@ -29,9 +31,10 @@ For the setup wizard CLI:
 
 ```bash
 pip install "siwe-django[cli]"
-siwe-django init        # patch settings.py + urls.py + drop a template
+siwe-django init        # patch settings.py + urls.py
 siwe-django doctor      # diagnose an existing install (CI-friendly --json)
-siwe-django scaffold-templates  # add the bundled sign-in template
+siwe-django init --template  # also add the starter sign-in template
+siwe-django scaffold-templates  # add or refresh the starter sign-in template
 siwe-django migrate-from-payton # rewrite payton/django-siwe-auth references
 ```
 
@@ -87,6 +90,10 @@ Run migrations:
 python manage.py migrate
 ```
 
+The package URLconf is API-only. It does not mount a sign-in page for you.
+Projects can use these endpoints from React, Django templates, htmx, or any
+other frontend.
+
 ## Endpoints
 
 - `GET /nonce/`: returns `{ nonce, expiresAt, domain, uri, statement,
@@ -116,6 +123,29 @@ python manage.py migrate
 
 The server consumes each nonce after the first successful verification, so replay
 attempts fail.
+
+### Server-rendered starter
+
+For Django-template projects, `siwe_django.forms.SiweVerifyForm` and
+`siwe_django.template_views.SiweLoginView` provide small UI primitives without
+forcing a site layout. You can mount the starter view yourself:
+
+```python
+from django.urls import include, path
+from siwe_django.template_views import SiweLoginView
+
+urlpatterns = [
+    path("auth/siwe/", include("siwe_django.urls")),
+    path("login/siwe/", SiweLoginView.as_view(), name="siwe-login"),
+]
+```
+
+The bundled `siwe_django/siwe_login.html` is intentionally minimal and can be
+overridden in your project templates or copied with:
+
+```bash
+siwe-django scaffold-templates
+```
 
 ### Optional EIP-4361 fields
 
@@ -161,9 +191,10 @@ Without it the contract check fails and the request is rejected.
 ## Showcase Demo
 
 The repository includes a full Django + Vite React demo under
-`examples/showcase/`. It uses the local package, Ethereum Identity Kit, Wagmi,
-Viem, DRF, Django sessions, ENS/EthID profile enrichment, linked wallets, and a
-custom local token gate that syncs the `demo-holders` Django group.
+`examples/showcase/`. It uses the local package, Ethereum Identity Kit, Reown
+AppKit, Wagmi, Viem, DRF, Django sessions, ENS/EthID profile enrichment, linked
+wallets, and a custom local token gate that syncs the `demo-holders` Django
+group.
 
 ```bash
 cd examples/showcase/backend
@@ -176,7 +207,7 @@ npm run dev
 ```
 
 Open `http://localhost:5173`. See `examples/showcase/README.md` for optional
-RPC, ENS, EthID, and demo gate environment variables.
+Reown, RPC, ENS, EthID, and demo gate environment variables.
 
 ## Ethereum Identity Kit
 
