@@ -92,19 +92,43 @@ def test_efp_min_followers(mocker, django_user_model):
 @pytest.mark.django_db
 def test_efp_not_blocked_by(mocker, django_user_model):
     wallet = _make_wallet(django_user_model)
-    state = mocker.patch("siwe_django.gates.fetch_efp_follower_state")
+    state = mocker.patch("siwe_django.gates.fetch_efp_follower_state_checked")
 
-    state.return_value = {"follow": False, "block": False, "mute": False}
+    state.return_value = (
+        {"follow": False, "block": False, "mute": False},
+        True,
+    )
     assert check_gate(
         wallet, {"type": "efp_not_blocked_by", "source": "hub.eth"}
     )
 
-    state.return_value = {"follow": False, "block": True, "mute": False}
+    state.return_value = (
+        {"follow": False, "block": True, "mute": False},
+        True,
+    )
     assert not check_gate(
         wallet, {"type": "efp_not_blocked_by", "source": "hub.eth"}
     )
 
-    state.return_value = {"follow": False, "block": False, "mute": True}
+    state.return_value = (
+        {"follow": False, "block": False, "mute": True},
+        True,
+    )
+    assert not check_gate(
+        wallet, {"type": "efp_not_blocked_by", "source": "hub.eth"}
+    )
+
+
+@pytest.mark.django_db
+def test_efp_not_blocked_by_fails_closed_on_lookup_failure(
+    mocker, django_user_model
+):
+    wallet = _make_wallet(django_user_model)
+    mocker.patch(
+        "siwe_django.gates.fetch_efp_follower_state_checked",
+        return_value=({"follow": False, "block": False, "mute": False}, False),
+    )
+
     assert not check_gate(
         wallet, {"type": "efp_not_blocked_by", "source": "hub.eth"}
     )

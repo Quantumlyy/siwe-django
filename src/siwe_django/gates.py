@@ -11,6 +11,7 @@ from web3 import HTTPProvider, Web3
 
 from .ethid import (
     fetch_efp_follower_state,
+    fetch_efp_follower_state_checked,
     fetch_efp_stats,
     fetch_efp_tags,
     fetch_ens_record,
@@ -174,7 +175,9 @@ def _check_efp_gate(
             return stats.get("followers_count", 0) >= threshold
         if gate_type == "efp_not_blocked_by":
             source = str(gate["source"])
-            state = fetch_efp_follower_state(source, address)
+            state, lookup_ok = fetch_efp_follower_state_checked(source, address)
+            if not lookup_ok:
+                return False
             return not (state.get("block") or state.get("mute"))
         if gate_type == "efp_tag":
             source = str(gate["source"])

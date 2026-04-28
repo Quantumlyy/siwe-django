@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import libcst as cst
 import pytest
 from typer.testing import CliRunner
 
@@ -79,6 +80,18 @@ def test_add_to_list_creates_when_absent():
 
     assert "INSTALLED_APPS" in result
     assert '"siwe_django"' in result
+
+
+def test_add_to_list_escapes_string_literals():
+    value = 'siwe"django\\custom'
+    source = "INSTALLED_APPS = []\n"
+
+    result = add_to_list_setting(source, "INSTALLED_APPS", [value])
+    again = add_to_list_setting(result, "INSTALLED_APPS", [value])
+
+    cst.parse_module(result)
+    assert '"siwe\\"django\\\\custom"' in result
+    assert again == result
 
 
 def test_add_settings_block_idempotent():

@@ -1,8 +1,9 @@
 import pytest
+from eth_account import Account
 from rest_framework.test import APIClient
 
 from siwe_django.ethid import EthIDProfile
-from siwe_django.models import SiweWallet
+from siwe_django.models import SiweAuthEvent, SiweWallet
 
 from .helpers import build_message, sign_message
 
@@ -11,8 +12,6 @@ from .helpers import build_message, sign_message
 def test_drf_nonce_and_verify():
     client = APIClient()
     nonce = client.get("/siwe-drf/nonce/").json()["nonce"]
-
-    from eth_account import Account
 
     account = Account.create()
     message = build_message(account, nonce)
@@ -32,8 +31,6 @@ def test_drf_verify_enforces_csrf():
     client = APIClient(enforce_csrf_checks=True)
     nonce = client.get("/siwe-drf/nonce/").json()["nonce"]
 
-    from eth_account import Account
-
     account = Account.create()
     message = build_message(account, nonce)
     response = client.post(
@@ -50,8 +47,6 @@ def test_drf_verify_accepts_csrf_token_from_nonce():
     client = APIClient(enforce_csrf_checks=True)
     nonce = client.get("/siwe-drf/nonce/").json()["nonce"]
     csrf_token = client.cookies["csrftoken"].value
-
-    from eth_account import Account
 
     account = Account.create()
     message = build_message(account, nonce)
@@ -72,6 +67,38 @@ def test_drf_me_requires_authentication():
     response = client.get("/siwe-drf/me/")
 
     assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_drf_reauth_rejects_other_wallet_with_audit_event():
+    client = APIClient()
+    account = Account.create()
+    nonce = client.get("/siwe-drf/nonce/").json()["nonce"]
+    message = build_message(account, nonce)
+    client.post(
+        "/siwe-drf/verify/",
+        {"message": message, "signature": sign_message(account, message)},
+        format="json",
+    )
+
+    other = Account.create()
+    nonce = client.get("/siwe-drf/nonce/").json()["nonce"]
+    message = build_message(other, nonce)
+    response = client.post(
+        "/siwe-drf/reauth/",
+        {"message": message, "signature": sign_message(other, message)},
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"] == "wallet_not_linked"
+    failure = SiweAuthEvent.objects.filter(
+        event=SiweAuthEvent.EVENT_VERIFY_FAILURE,
+        error_code="wallet_not_linked",
+    ).get()
+    assert failure.address == other.address
+    assert failure.success is False
+    assert failure.metadata == {"stepup": True}
 
 
 @pytest.mark.django_db

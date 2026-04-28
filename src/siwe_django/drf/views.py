@@ -156,6 +156,15 @@ class ReauthView(APIView):
             )
         )
         if identity.address not in linked_addresses:
+            record_event(
+                request,
+                SiweAuthEvent.EVENT_VERIFY_FAILURE,
+                address=identity.address,
+                user=request.user,
+                success=False,
+                error_code="wallet_not_linked",
+                metadata={"stepup": True},
+            )
             return Response(
                 {
                     "success": False,

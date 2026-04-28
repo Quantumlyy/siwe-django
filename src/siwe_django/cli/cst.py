@@ -7,6 +7,8 @@ change their minds.
 
 from __future__ import annotations
 
+import ast
+import json
 from collections.abc import Iterable
 
 import libcst as cst
@@ -14,7 +16,7 @@ from libcst import matchers as m
 
 
 def _string_node(value: str) -> cst.SimpleString:
-    return cst.SimpleString(value=f'"{value}"')
+    return cst.SimpleString(value=json.dumps(value))
 
 
 def _is_target_assign(stmt: cst.SimpleStatementLine, name: str) -> bool:
@@ -27,25 +29,18 @@ def _is_target_assign(stmt: cst.SimpleStatementLine, name: str) -> bool:
 
 
 def _list_already_contains(node: cst.BaseExpression, needle: str) -> bool:
-    return m.matches(
-        node,
-        m.List(
-            elements=[
-                m.ZeroOrMore(),
-                m.Element(value=m.SimpleString(value=f'"{needle}"')),
-                m.ZeroOrMore(),
-            ]
-        ),
-    ) or m.matches(
-        node,
-        m.List(
-            elements=[
-                m.ZeroOrMore(),
-                m.Element(value=m.SimpleString(value=f"'{needle}'")),
-                m.ZeroOrMore(),
-            ]
-        ),
-    )
+    if not isinstance(node, cst.List):
+        return False
+    for element in node.elements:
+        value = getattr(element, "value", None)
+        if not isinstance(value, cst.SimpleString):
+            continue
+        try:
+            if ast.literal_eval(value.value) == needle:
+                return True
+        except (SyntaxError, ValueError):
+            continue
+    return False
 
 
 def _append_to_list(
