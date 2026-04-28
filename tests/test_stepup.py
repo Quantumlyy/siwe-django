@@ -6,6 +6,7 @@ import pytest
 from django.http import HttpResponse
 from django.test import RequestFactory
 
+from siwe_django.models import SiweAuthEvent
 from siwe_django.stepup import (
     SESSION_KEY,
     has_recent_siwe,
@@ -146,3 +147,10 @@ def test_reauth_endpoint_rejects_other_wallet(client):
 
     assert response.status_code == 403
     assert response.json()["error"] == "wallet_not_linked"
+    failure = SiweAuthEvent.objects.filter(
+        event=SiweAuthEvent.EVENT_VERIFY_FAILURE,
+        error_code="wallet_not_linked",
+    ).get()
+    assert failure.address == other["account"].address
+    assert failure.success is False
+    assert failure.metadata == {"stepup": True}

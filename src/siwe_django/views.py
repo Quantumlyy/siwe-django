@@ -181,6 +181,15 @@ def reauth(request: HttpRequest) -> JsonResponse:
         )
     )
     if identity.address not in user_wallet_addresses:
+        record_event(
+            request,
+            SiweAuthEvent.EVENT_VERIFY_FAILURE,
+            address=identity.address,
+            user=request.user,
+            success=False,
+            error_code="wallet_not_linked",
+            metadata={"stepup": True},
+        )
         return JsonResponse(
             {
                 "success": False,
