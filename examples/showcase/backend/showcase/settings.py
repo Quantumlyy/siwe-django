@@ -18,15 +18,43 @@ def _csv(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def _fly_host() -> str:
+    app_name = os.getenv("FLY_APP_NAME")
+    return f"{app_name}.fly.dev" if app_name else ""
+
+
+def _default_public_host() -> str:
+    return _fly_host() or "localhost:5173"
+
+
+def _default_public_origin() -> str:
+    scheme = "https" if _fly_host() else "http"
+    return f"{scheme}://{_default_public_host()}"
+
+
+def _default_allowed_hosts() -> str:
+    hosts = ["localhost", "127.0.0.1", "testserver"]
+    fly_host = _fly_host()
+    if fly_host:
+        hosts.append(fly_host)
+    return ",".join(hosts)
+
+
+def _default_csrf_trusted_origins() -> str:
+    origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    fly_host = _fly_host()
+    if fly_host:
+        origins.append(f"https://{fly_host}")
+    return ",".join(origins)
+
+
 SECRET_KEY = os.getenv("SIWE_DEMO_SECRET_KEY", "siwe-django-showcase-dev-key")
 DEBUG = _bool("SIWE_DEMO_DEBUG", "true")
 
-ALLOWED_HOSTS = _csv(
-    "SIWE_DEMO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver"
-)
+ALLOWED_HOSTS = _csv("SIWE_DEMO_ALLOWED_HOSTS", _default_allowed_hosts())
 CSRF_TRUSTED_ORIGINS = _csv(
     "SIWE_DEMO_CSRF_TRUSTED_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173",
+    _default_csrf_trusted_origins(),
 )
 
 INSTALLED_APPS = [
@@ -132,8 +160,8 @@ def _rpc_urls() -> dict[int, str]:
 
 
 SIWE_DJANGO = {
-    "DOMAIN": os.getenv("SIWE_DEMO_DOMAIN", "localhost:5173"),
-    "URI": os.getenv("SIWE_DEMO_URI", "http://localhost:5173"),
+    "DOMAIN": os.getenv("SIWE_DEMO_DOMAIN", _default_public_host()),
+    "URI": os.getenv("SIWE_DEMO_URI", _default_public_origin()),
     "STATEMENT": "Sign in to the siwe-django showcase.",
     "ALLOWED_CHAIN_IDS": [1, 11155111, 31337],
     "AUTO_CREATE_USERS": True,

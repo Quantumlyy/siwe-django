@@ -32,6 +32,21 @@ def test_showcase_settings_import():
     assert demo_settings.SIWE_DJANGO["TOKEN_GATES"][0]["group"] == "demo-holders"
 
 
+def test_showcase_settings_derive_fly_defaults(monkeypatch):
+    monkeypatch.setenv("FLY_APP_NAME", "siwe-django-showcase")
+
+    assert demo_settings._default_public_host() == "siwe-django-showcase.fly.dev"
+    assert (
+        demo_settings._default_public_origin()
+        == "https://siwe-django-showcase.fly.dev"
+    )
+    assert "siwe-django-showcase.fly.dev" in demo_settings._default_allowed_hosts()
+    assert (
+        "https://siwe-django-showcase.fly.dev"
+        in demo_settings._default_csrf_trusted_origins()
+    )
+
+
 @pytest.mark.django_db
 def test_showcase_urls_issue_nonce(client, demo_urls_settings):
     response = client.get("/auth/siwe/nonce/")
