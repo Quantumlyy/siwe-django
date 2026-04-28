@@ -229,7 +229,8 @@ def _user_factory():
 
 def _update_user_identity_fields(user, identity: SiweIdentity) -> None:
     changed = []
-    for field, value in (
+    has_identity_profile = bool(identity.identity_profile)
+    fields = [
         ("ethereum_address", identity.address),
         ("chain_id", identity.chain_id),
         ("ens_name", identity.ens_name),
@@ -241,12 +242,18 @@ def _update_user_identity_fields(user, identity: SiweIdentity) -> None:
         ("identity_avatar", identity.identity_avatar),
         ("identity_url", identity.identity_url),
         ("identity_profile", identity.identity_profile or {}),
-        ("followers_count", identity.followers_count),
-        ("following_count", identity.following_count),
-    ):
+    ]
+    if has_identity_profile:
+        fields.extend(
+            [
+                ("followers_count", identity.followers_count),
+                ("following_count", identity.following_count),
+            ]
+        )
+    for field, value in fields:
         if (
             hasattr(user, field)
-            and value not in ("", None)
+            and value not in ("", None, {})
             and getattr(user, field) != value
         ):
             setattr(user, field, value)
@@ -446,7 +453,7 @@ def eth_identity_kit_nonce_payload(nonce: SiweNonce) -> dict[str, Any]:
 def get_public_identity_profile(
     address_or_name: str, *, fresh: bool | None = None
 ) -> dict[str, Any]:
-    if not (get_setting("ETHID_ENABLED") or get_setting("ETHID_PROFILE_PROXY_ENABLED")):
+    if not get_setting("ETHID_PROFILE_PROXY_ENABLED"):
         raise SiweAuthError("EthID profile lookups are disabled.", status_code=404)
     profile = fetch_ethid_profile(address_or_name, fresh=fresh)
     if profile.is_empty:
