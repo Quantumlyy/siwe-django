@@ -109,6 +109,23 @@ that:
 - the signed `Request ID` matches the bound value,
 - the signed `Not Before` matches the bound timestamp.
 
+### ReCap (ERC-5573)
+
+`siwe_django.recap` ships helpers to build and parse ReCap capability URIs so
+relying parties can scope a sign-in to specific abilities:
+
+```python
+from siwe_django.recap import encode_recap
+from siwe_django.services import issue_nonce
+
+recap_uri = encode_recap({"https://api.example.com": {"crud/read": [{}]}})
+issue_nonce(request, resources=["https://api.example.com", recap_uri])
+```
+
+`siwe_django.recap.find_recap_in_resources(resources)` returns the decoded
+`{"att": ..., "prf": ...}` payload from a SIWE message's `Resources` list, or
+`None` when no ReCap is present.
+
 ### Smart contract wallets
 
 `siwe-django` verifies smart contract wallet signatures via:
