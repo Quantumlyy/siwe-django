@@ -28,6 +28,45 @@ def test_drf_nonce_and_verify():
 
 
 @pytest.mark.django_db
+def test_drf_verify_enforces_csrf():
+    client = APIClient(enforce_csrf_checks=True)
+    nonce = client.get("/siwe-drf/nonce/").json()["nonce"]
+
+    from eth_account import Account
+
+    account = Account.create()
+    message = build_message(account, nonce)
+    response = client.post(
+        "/siwe-drf/verify/",
+        {"message": message, "signature": sign_message(account, message)},
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_drf_verify_accepts_csrf_token_from_nonce():
+    client = APIClient(enforce_csrf_checks=True)
+    nonce = client.get("/siwe-drf/nonce/").json()["nonce"]
+    csrf_token = client.cookies["csrftoken"].value
+
+    from eth_account import Account
+
+    account = Account.create()
+    message = build_message(account, nonce)
+    response = client.post(
+        "/siwe-drf/verify/",
+        {"message": message, "signature": sign_message(account, message)},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf_token,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["wallet"]["address"] == account.address
+
+
+@pytest.mark.django_db
 def test_drf_me_requires_authentication():
     client = APIClient()
     response = client.get("/siwe-drf/me/")

@@ -48,7 +48,7 @@ def _error_response(error: SiweAuthError) -> JsonResponse:
 
 def _client_ip(request: HttpRequest) -> str:
     forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
-    if forwarded:
+    if forwarded and get_setting("RATE_LIMIT_TRUST_X_FORWARDED_FOR"):
         return forwarded.split(",", 1)[0].strip()
     return request.META.get("REMOTE_ADDR", "")
 
