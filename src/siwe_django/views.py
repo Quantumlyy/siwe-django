@@ -11,7 +11,8 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
-from .models import SiweWallet
+from .audit import record_event
+from .models import SiweAuthEvent, SiweWallet
 from .services import (
     SiweAuthError,
     authenticate_siwe,
@@ -23,8 +24,10 @@ from .services import (
     serialize_user,
     serialize_wallet,
     unlink_wallet,
+    verify_siwe_message,
 )
 from .settings import get_setting
+from .stepup import mark_recent_siwe
 
 SIWE_BACKEND = "siwe_django.backend.SiweBackend"
 
@@ -98,6 +101,7 @@ def rate_limit(scope: str) -> Callable:
 @require_http_methods(["GET"])
 def nonce(request: HttpRequest) -> JsonResponse:
     nonce_obj = issue_nonce(request)
+    record_event(request, SiweAuthEvent.EVENT_NONCE_ISSUED)
     return JsonResponse(
         {
             "nonce": nonce_obj.nonce,
@@ -120,9 +124,22 @@ def verify(request: HttpRequest) -> JsonResponse:
             body.get("message", ""), body.get("signature", ""), request
         )
     except SiweAuthError as exc:
+        record_event(
+            request,
+            SiweAuthEvent.EVENT_VERIFY_FAILURE,
+            success=False,
+            error_code=exc.code,
+        )
         return _error_response(exc)
 
     auth_login(request, result.user, backend=SIWE_BACKEND)
+    mark_recent_siwe(request)
+    record_event(
+        request,
+        SiweAuthEvent.EVENT_VERIFY_SUCCESS,
+        address=result.identity.address,
+        user=result.user,
+    )
     return JsonResponse(
         {
             "success": True,
@@ -130,6 +147,58 @@ def verify(request: HttpRequest) -> JsonResponse:
             "wallet": serialize_wallet(result.wallet),
         }
     )
+
+
+@csrf_protect
+@rate_limit("verify")
+@require_http_methods(["POST"])
+def reauth(request: HttpRequest) -> JsonResponse:
+    """Re-verify a SIWE signature for the currently authenticated session."""
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"success": False, "error": "not_authenticated"},
+            status=401,
+        )
+    try:
+        body = _json_body(request)
+        identity = verify_siwe_message(
+            body.get("message", ""), body.get("signature", ""), request
+        )
+    except SiweAuthError as exc:
+        record_event(
+            request,
+            SiweAuthEvent.EVENT_VERIFY_FAILURE,
+            user=request.user,
+            success=False,
+            error_code=exc.code,
+            metadata={"stepup": True},
+        )
+        return _error_response(exc)
+
+    user_wallet_addresses = set(
+        SiweWallet.objects.filter(user=request.user).values_list(
+            "address", flat=True
+        )
+    )
+    if identity.address not in user_wallet_addresses:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "wallet_not_linked",
+                "message": "Signed wallet is not linked to the current user.",
+            },
+            status=403,
+        )
+
+    mark_recent_siwe(request)
+    record_event(
+        request,
+        SiweAuthEvent.EVENT_VERIFY_SUCCESS,
+        address=identity.address,
+        user=request.user,
+        metadata={"stepup": True},
+    )
+    return JsonResponse({"success": True, "address": identity.address})
 
 
 @require_http_methods(["GET"])
@@ -153,7 +222,13 @@ def me(request: HttpRequest) -> JsonResponse:
 @rate_limit("logout")
 @require_http_methods(["POST"])
 def logout(request: HttpRequest) -> JsonResponse:
+    user = request.user if request.user.is_authenticated else None
     auth_logout(request)
+    record_event(
+        request,
+        SiweAuthEvent.EVENT_LOGOUT,
+        user=user,
+    )
     return JsonResponse({"success": True})
 
 
@@ -175,7 +250,20 @@ def link(request: HttpRequest) -> JsonResponse:
             request,
         )
     except SiweAuthError as exc:
+        record_event(
+            request,
+            SiweAuthEvent.EVENT_LINK_FAILURE,
+            user=request.user,
+            success=False,
+            error_code=exc.code,
+        )
         return _error_response(exc)
+    record_event(
+        request,
+        SiweAuthEvent.EVENT_LINK_SUCCESS,
+        address=wallet.address,
+        user=request.user,
+    )
     return JsonResponse({"success": True, "wallet": serialize_wallet(wallet)})
 
 
@@ -220,4 +308,10 @@ def wallet_detail(request: HttpRequest, wallet_id: int) -> HttpResponse:
         unlink_wallet(request.user, wallet_id)
     except SiweAuthError as exc:
         return _error_response(exc)
+    record_event(
+        request,
+        SiweAuthEvent.EVENT_UNLINK,
+        user=request.user,
+        metadata={"wallet_id": wallet_id},
+    )
     return JsonResponse({"success": True})

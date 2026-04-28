@@ -59,3 +59,39 @@ uv run pytest
 uv run python -m build
 cd examples/showcase/frontend && npm run build
 ```
+
+## Deploy to Fly.io
+
+The showcase ships a multi-stage `Dockerfile` (Bun builds the Vite bundle,
+Python runs `gunicorn` behind WhiteNoise) and a `fly.toml` that mounts a
+1 GB volume for SQLite. One Fly app serves the React SPA and the Django
+endpoints under a single origin so CSRF and session cookies stay
+same-origin.
+
+From the repository root:
+
+```bash
+# 1) Edit examples/showcase/fly.toml: set `app = "<your-fly-app>"` and the
+#    SIWE_DEMO_ALLOWED_HOSTS / SIWE_DEMO_DOMAIN / SIWE_DEMO_URI / 
+#    SIWE_DEMO_CSRF_TRUSTED_ORIGINS values to match the Fly hostname you
+#    intend to use (or your custom domain).
+
+# 2) Create the app + the SQLite volume.
+fly launch --config examples/showcase/fly.toml --no-deploy
+fly volumes create showcase_data --region lhr --size 1
+
+# 3) Set the secrets (everything not in `fly.toml`'s [env]).
+fly secrets set \
+    SIWE_DEMO_SECRET_KEY="$(openssl rand -hex 32)" \
+    SIWE_DEMO_RPC_URL_1="https://mainnet.infura.io/v3/<key>"
+
+# 4) Deploy.
+fly deploy --config examples/showcase/fly.toml
+```
+
+Hit `https://<your-fly-app>.fly.dev/` and the React SPA loads; sign-in,
+session, wallet linking, and token-gate sync all work end-to-end.
+
+To switch off SQLite-on-volume in favour of managed Postgres, swap the
+`DATABASES` block in `backend/showcase/settings.py` for one that reads
+`DATABASE_URL` and remove the `[[mounts]]` section from `fly.toml`.

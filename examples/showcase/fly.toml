@@ -1,0 +1,56 @@
+# Fly.io config for the siwe-django showcase.
+#
+# The build context is the repo root; deploy with:
+#
+#   fly launch --config examples/showcase/fly.toml --no-deploy   # one-off
+#   fly volumes create showcase_data --region lhr --size 1
+#   fly secrets set \
+#     SIWE_DEMO_SECRET_KEY=$(openssl rand -hex 32) \
+#     SIWE_DEMO_RPC_URL_1=https://mainnet.infura.io/v3/...
+#   fly deploy --config examples/showcase/fly.toml
+#
+# Update `app` to your unique Fly app name before the first deploy.
+
+app = "siwe-django-showcase"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "examples/showcase/Dockerfile"
+
+[env]
+  PORT = "8080"
+  DJANGO_SETTINGS_MODULE = "showcase.settings"
+  SIWE_DEMO_DEBUG = "false"
+  SIWE_DEMO_SECURE_COOKIES = "true"
+  SIWE_DEMO_USE_X_FORWARDED_PROTO = "true"
+  SIWE_DEMO_DATABASE_PATH = "/data/db.sqlite3"
+  SIWE_DEMO_ALLOWED_HOSTS = "siwe-django-showcase.fly.dev"
+  SIWE_DEMO_CSRF_TRUSTED_ORIGINS = "https://siwe-django-showcase.fly.dev"
+  SIWE_DEMO_DOMAIN = "siwe-django-showcase.fly.dev"
+  SIWE_DEMO_URI = "https://siwe-django-showcase.fly.dev/"
+  SIWE_DEMO_ETHID_ENABLED = "true"
+
+[[mounts]]
+  source = "showcase_data"
+  destination = "/data"
+  initial_size = "1gb"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 200
+    soft_limit = 100
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+[deploy]
+  release_command = "python manage.py migrate --noinput"

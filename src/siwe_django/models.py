@@ -182,6 +182,9 @@ class SiweNonce(models.Model):
     domain = models.CharField(max_length=255, blank=True)
     uri = models.URLField(max_length=2048, blank=True)
     expires_at = models.DateTimeField()
+    not_before = models.DateTimeField(blank=True, null=True)
+    request_id = models.CharField(max_length=255, blank=True)
+    resources = models.JSONField(default=list, blank=True)
     consumed_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -213,3 +216,50 @@ class SiweNonce(models.Model):
 
     def __str__(self) -> str:
         return self.nonce
+
+
+class SiweAuthEvent(models.Model):
+    EVENT_NONCE_ISSUED = "nonce_issued"
+    EVENT_VERIFY_SUCCESS = "verify_succeeded"
+    EVENT_VERIFY_FAILURE = "verify_failed"
+    EVENT_LINK_SUCCESS = "link_succeeded"
+    EVENT_LINK_FAILURE = "link_failed"
+    EVENT_UNLINK = "unlink"
+    EVENT_LOGOUT = "logout"
+
+    EVENT_CHOICES = [
+        (EVENT_NONCE_ISSUED, "Nonce issued"),
+        (EVENT_VERIFY_SUCCESS, "Verify succeeded"),
+        (EVENT_VERIFY_FAILURE, "Verify failed"),
+        (EVENT_LINK_SUCCESS, "Link succeeded"),
+        (EVENT_LINK_FAILURE, "Link failed"),
+        (EVENT_UNLINK, "Wallet unlinked"),
+        (EVENT_LOGOUT, "Logout"),
+    ]
+
+    event = models.CharField(max_length=32, choices=EVENT_CHOICES)
+    address = models.CharField(max_length=42, blank=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="siwe_auth_events",
+    )
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=512, blank=True)
+    success = models.BooleanField(default=True)
+    error_code = models.CharField(max_length=64, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(fields=["address", "timestamp"]),
+            models.Index(fields=["event", "timestamp"]),
+        ]
+
+    def __str__(self) -> str:
+        suffix = self.address or "anonymous"
+        return f"{self.event} {suffix} @ {self.timestamp:%Y-%m-%d %H:%M:%S}"

@@ -7,6 +7,7 @@ app_name = "siwe_django_drf"
 urlpatterns = [
     path("nonce/", views.NonceView.as_view(), name="nonce"),
     path("verify/", views.VerifyView.as_view(), name="verify"),
+    path("reauth/", views.ReauthView.as_view(), name="reauth"),
     path("me/", views.MeView.as_view(), name="me"),
     path("logout/", views.LogoutView.as_view(), name="logout"),
     path("link/", views.LinkView.as_view(), name="link"),

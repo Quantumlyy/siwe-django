@@ -10,6 +10,7 @@ DEFAULTS: dict[str, Any] = {
     "URI": None,
     "STATEMENT": "Sign in with Ethereum.",
     "NONCE_TTL_SECONDS": 300,
+    "CLOCK_SKEW_SECONDS": 60,
     "ALLOWED_CHAIN_IDS": None,
     "RPC_URLS": {},
     "ENS_ENABLED": False,
@@ -25,6 +26,11 @@ DEFAULTS: dict[str, Any] = {
     "RATE_LIMIT_TRUST_X_FORWARDED_FOR": False,
     "TOKEN_GATES": [],
     "SYNC_TOKEN_GATES_ON_LOGIN": True,
+    "AUDIT_ENABLED": True,
+    "NONCE_STORE": "siwe_django.nonce_store.DjangoOrmNonceStore",
+    "REDIS_URL": None,
+    "WEBHOOKS": [],
+    "WEBHOOK_DISPATCHER": None,
 }
 
 

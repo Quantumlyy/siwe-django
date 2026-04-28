@@ -1,0 +1,37 @@
+# The Dockerfile is built with the repo root as context. Excluding heavy
+# directories keeps the build fast and the final image small.
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/*.pyc
+**/.DS_Store
+
+# Virtual envs / lockfile sidecars
+.venv/
+venv/
+.tox/
+dist/
+build/
+*.egg-info/
+
+# Frontend build artefacts (we rebuild inside the container)
+examples/showcase/frontend/node_modules/
+examples/showcase/frontend/dist/
+
+# Local DBs / showcase volumes
+**/db.sqlite3
+**/db.sqlite3-journal
+
+# Local plans / IDE / git
+.git/
+.github/
+.context/
+.vscode/
+.idea/
+plans/
+
+# Other examples we don't deploy
+examples/templates_demo/
+
+# Tests / docs not needed in the runtime image
+tests/

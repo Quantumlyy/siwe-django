@@ -3,8 +3,10 @@ import { defineConfig } from "vite";
 
 const backendUrl =
   process.env.VITE_SHOWCASE_BACKEND_URL || "http://127.0.0.1:8000";
+const base = process.env.VITE_BASE || "/";
 
 export default defineConfig({
+  base,
   plugins: [react()],
   server: {
     port: 5173,

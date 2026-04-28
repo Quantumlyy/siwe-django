@@ -75,6 +75,118 @@ def _fetch_profile_part(path: str, *, fresh: bool | None = None) -> dict[str, An
         return {}
 
 
+def _fetch_list_endpoint(
+    path: str,
+    *,
+    list_key: str,
+    params: dict[str, Any] | None = None,
+    fresh: bool | None = None,
+) -> list[dict[str, Any]]:
+    extra = {**({"cache": "fresh"} if _fresh_requested(fresh) else {})}
+    if params:
+        extra.update({k: str(v) for k, v in params.items() if v is not None})
+    query = f"?{urlencode(extra)}" if extra else ""
+    request = Request(
+        f"{_api_base_url()}/{path.lstrip('/')}{query}",
+        headers={"Accept": "application/json", "User-Agent": "siwe-django"},
+    )
+    try:
+        with urlopen(request, timeout=_timeout()) as response:
+            if response.status >= 400:
+                return []
+            data = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError):
+        logger.exception("EthID list lookup failed for %s.", path)
+        return []
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    if isinstance(data, dict):
+        items = data.get(list_key)
+        if isinstance(items, list):
+            return [item for item in items if isinstance(item, dict)]
+    return []
+
+
+def fetch_efp_stats(address_or_name: str) -> dict[str, int]:
+    """Return ``{followers_count, following_count}`` for an address or ENS name.
+
+    Returns an empty dict on lookup failure so callers can decide how to handle
+    transient EthID outages without exception handling.
+    """
+    encoded = quote(address_or_name, safe="")
+    data = _fetch_profile_part(f"users/{encoded}/stats")
+    return {
+        "followers_count": _as_int(
+            data.get("followers_count") or data.get("followersCount")
+        ),
+        "following_count": _as_int(
+            data.get("following_count") or data.get("followingCount")
+        ),
+    }
+
+
+def fetch_efp_follower_state(
+    viewer: str, target: str
+) -> dict[str, bool]:
+    """Return ``{follow, block, mute}`` for "does ``viewer`` follow ``target``"."""
+    viewer_q = quote(viewer, safe="")
+    target_q = quote(target, safe="")
+    data = _fetch_profile_part(f"users/{viewer_q}/follower-state/{target_q}")
+    return {
+        "follow": bool(data.get("follow")),
+        "block": bool(data.get("block")),
+        "mute": bool(data.get("mute")),
+    }
+
+
+def fetch_efp_followers(
+    address_or_name: str, *, limit: int = 100, offset: int = 0
+) -> list[dict[str, Any]]:
+    encoded = quote(address_or_name, safe="")
+    return _fetch_list_endpoint(
+        f"users/{encoded}/followers",
+        list_key="followers",
+        params={"limit": limit, "offset": offset},
+    )
+
+
+def fetch_efp_following(
+    address_or_name: str, *, limit: int = 100, offset: int = 0
+) -> list[dict[str, Any]]:
+    encoded = quote(address_or_name, safe="")
+    return _fetch_list_endpoint(
+        f"users/{encoded}/following",
+        list_key="following",
+        params={"limit": limit, "offset": offset},
+    )
+
+
+def fetch_efp_tags(
+    address_or_name: str, *, source: str | None = None
+) -> list[dict[str, Any]]:
+    """Return the tags applied to ``address_or_name``.
+
+    ``source``, when set, filters the response to tags applied by the given
+    address or ENS name (commonly the relying party's "hub" account).
+    """
+    encoded = quote(address_or_name, safe="")
+    tags = _fetch_list_endpoint(f"users/{encoded}/tags", list_key="tags")
+    if source is None:
+        return tags
+    source_lc = source.lower()
+    return [
+        tag
+        for tag in tags
+        if str(tag.get("address") or tag.get("source") or "").lower() == source_lc
+    ]
+
+
+def fetch_ens_record(address_or_name: str) -> dict[str, Any]:
+    """Return the EthID ENS record (primary name + avatar + records)."""
+    encoded = quote(address_or_name, safe="")
+    return _fetch_profile_part(f"users/{encoded}/ens")
+
+
 def _as_int(value: Any) -> int:
     try:
         return int(value or 0)
