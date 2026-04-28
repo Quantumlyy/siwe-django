@@ -44,6 +44,8 @@ class SiweLoginView(FormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.setdefault("nonce_url", self.get_nonce_url())
-        context.setdefault("verify_url", self.get_verify_url())
+        if "nonce_url" not in context:
+            context["nonce_url"] = self.get_nonce_url()
+        if "verify_url" not in context:
+            context["verify_url"] = self.get_verify_url()
         return context

@@ -1,8 +1,10 @@
 import pytest
 from django.forms.widgets import HiddenInput
 from django.test import override_settings
+from django.urls import path
 
 from siwe_django.forms import SiweVerifyForm
+from siwe_django.template_views import SiweLoginView
 
 
 def test_siwe_verify_form_accepts_message_and_signature():
@@ -40,3 +42,27 @@ def test_siwe_login_view_falls_back_to_drf_endpoint_urls(client):
     assert response.status_code == 200
     assert response.context["nonce_url"] == "/siwe-drf/nonce/"
     assert response.context["verify_url"] == "/siwe-drf/verify/"
+
+
+urlpatterns = [
+    path(
+        "custom-login/",
+        SiweLoginView.as_view(
+            extra_context={
+                "nonce_url": "/custom/nonce/",
+                "verify_url": "/custom/verify/",
+            }
+        ),
+        name="custom-siwe-login",
+    ),
+]
+
+
+@pytest.mark.django_db
+@override_settings(ROOT_URLCONF=__name__)
+def test_siwe_login_view_respects_explicit_context_urls(client):
+    response = client.get("/custom-login/")
+
+    assert response.status_code == 200
+    assert response.context["nonce_url"] == "/custom/nonce/"
+    assert response.context["verify_url"] == "/custom/verify/"
