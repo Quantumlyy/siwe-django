@@ -282,6 +282,38 @@ SIWE_DJANGO = {
 Custom checkers receive `wallet` and `gate` keyword arguments and return a
 boolean.
 
+### EFP and ENS gates
+
+Gates are not limited to on-chain holdings. The Ethereum Identity Kit / EFP
+graph is a first-class authorization primitive:
+
+```python
+SIWE_DJANGO = {
+    "ETHID_ENABLED": True,
+    "TOKEN_GATES": [
+        {"type": "efp_followed_by", "source": "team.example.eth", "group": "team"},
+        {"type": "efp_min_followers", "threshold": 100, "group": "popular"},
+        {"type": "efp_tag", "source": "team.example.eth", "tag": "vip", "group": "vip"},
+        {"type": "efp_not_blocked_by", "source": "team.example.eth", "group": "members"},
+        {"type": "ens_required", "group": "ens-holders"},
+    ],
+}
+```
+
+| Type | Passes when |
+| --- | --- |
+| `efp_follower_of` | wallet follows `target` |
+| `efp_followed_by` | `source` follows the wallet |
+| `efp_mutual` | wallet and `hub` follow each other |
+| `efp_min_followers` | wallet has at least `threshold` followers |
+| `efp_tag` | `source` has tagged the wallet with `tag` |
+| `efp_not_blocked_by` | `source` has not blocked or muted the wallet |
+| `ens_required` | wallet has a primary ENS name |
+
+EFP and ENS gates ignore `chain_id`. They reuse the existing `TOKEN_GATES`
+group-sync semantics, so a failed gate removes the matching `Group` rather
+than blocking sign-in.
+
 ## OIDC Helpers
 
 `siwe_django.oidc.claims_for_wallet(wallet)` returns claim shapes compatible with
