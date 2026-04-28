@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
+import { AppKitButton, AppKitNetworkButton } from "@reown/appkit/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ProfileCard, useSiwe } from "ethereum-identity-kit";
 import {
@@ -29,6 +30,7 @@ import {
   verifySignature,
   WalletIdentity,
 } from "./api";
+import { hasReownProjectId } from "./wagmi";
 
 function shortAddress(address?: string) {
   if (!address) return "Not connected";
@@ -288,28 +290,42 @@ export default function App() {
           </div>
 
           <div className="actionStack">
-            {!account.isConnected ? (
-              connectors.map((connector) => (
-                <button
-                  className="commandButton"
-                  type="button"
-                  disabled={isConnecting}
-                  key={connector.uid}
-                  onClick={() => connect({ connector })}
-                >
-                  <Wallet size={16} />
-                  Connect {connector.name}
-                </button>
-              ))
+            {hasReownProjectId ? (
+              <div className="appkitControls">
+                <AppKitButton namespace="eip155" />
+                <AppKitNetworkButton />
+              </div>
             ) : (
-              <button
-                className="commandButton secondary"
-                type="button"
-                onClick={() => disconnect()}
-              >
-                <Wallet size={16} />
-                Disconnect wallet
-              </button>
+              <>
+                <div className="notice">
+                  <AlertCircle size={16} />
+                  Set VITE_REOWN_PROJECT_ID to enable Reown AppKit and
+                  WalletConnect. Local injected wallets are available without it.
+                </div>
+                {!account.isConnected ? (
+                  connectors.map((connector) => (
+                    <button
+                      className="commandButton"
+                      type="button"
+                      disabled={isConnecting}
+                      key={connector.uid}
+                      onClick={() => connect({ connector })}
+                    >
+                      <Wallet size={16} />
+                      Connect {connector.name}
+                    </button>
+                  ))
+                ) : (
+                  <button
+                    className="commandButton secondary"
+                    type="button"
+                    onClick={() => disconnect()}
+                  >
+                    <Wallet size={16} />
+                    Disconnect wallet
+                  </button>
+                )}
+              </>
             )}
 
             <button

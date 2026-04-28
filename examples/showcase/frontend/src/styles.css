@@ -198,6 +198,13 @@ h2 {
   gap: 10px;
 }
 
+.appkitControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .commandButton,
 .iconButton {
   display: inline-flex;

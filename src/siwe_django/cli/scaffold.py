@@ -1,4 +1,4 @@
-"""Drop a working Django sign-in template + app into an existing project."""
+"""Drop a starter Django sign-in template + app into an existing project."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def _bundled_template_text() -> str:
 
 
 def write_login_template(target_root: Path, *, overwrite: bool = False) -> Path:
-    """Write the bundled sign-in template into ``target_root/templates/...``.
+    """Write the bundled starter template into ``target_root/templates/...``.
 
     Returns the path written. If the file exists and ``overwrite`` is False,
     leaves the existing file alone.

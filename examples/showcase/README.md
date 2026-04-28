@@ -2,7 +2,8 @@
 
 This demo runs a small Django backend and a Vite React frontend against the
 local `siwe-django` package. It demonstrates nonce-based SIWE login, Django
-sessions, linked wallets, ENS/EthID profile data, and token-gated Django groups.
+sessions, linked wallets, Reown AppKit wallet connection, ENS/EthID profile
+data, and token-gated Django groups.
 
 ## Backend
 
@@ -36,12 +37,14 @@ In another terminal:
 ```bash
 cd examples/showcase/frontend
 npm install
+export VITE_REOWN_PROJECT_ID="<project-id>"  # optional; enables AppKit + WalletConnect
 npm run dev
 ```
 
 Open `http://localhost:5173`. Vite proxies `/auth/siwe/` and
 `/api/showcase/` to Django at `http://127.0.0.1:8000`, so no CORS package is
-needed.
+needed. Without `VITE_REOWN_PROJECT_ID`, the demo falls back to injected browser
+wallets so local development still works without a Reown project.
 
 If port `8000` is already in use, run Django on another port and point Vite at
 it:

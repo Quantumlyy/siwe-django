@@ -1,0 +1,101 @@
+<script>
+  const NONCE_URL = "{{ nonce_url|escapejs }}";
+  const VERIFY_URL = "{{ verify_url|escapejs }}";
+
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+    return "";
+  }
+
+  function buildSiweMessage({ domain, address, uri, version, chainId, nonce, statement }) {
+    const issuedAt = new Date().toISOString();
+    const lines = [
+      `${domain} wants you to sign in with your Ethereum account:`,
+      address,
+      "",
+    ];
+    if (statement) lines.push(statement, "");
+    lines.push(
+      `URI: ${uri}`,
+      `Version: ${version}`,
+      `Chain ID: ${chainId}`,
+      `Nonce: ${nonce}`,
+      `Issued At: ${issuedAt}`,
+    );
+    return lines.join("\n");
+  }
+
+  function setSiweStatus(status, state, message) {
+    if (!status) return;
+    status.dataset.siweState = state;
+    status.textContent = message;
+  }
+
+  document.getElementById("siwe-submit").addEventListener("click", async () => {
+    const form = document.getElementById("siwe-form");
+    const status = document.getElementById("siwe-status");
+    const result = document.getElementById("siwe-result");
+    setSiweStatus(status, "idle", "");
+    if (result) result.hidden = true;
+
+    if (!window.ethereum) {
+      setSiweStatus(status, "error", "No wallet provider detected.");
+      return;
+    }
+
+    try {
+      const [address] = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      const chainIdHex = await window.ethereum.request({ method: "eth_chainId" });
+      const chainId = parseInt(chainIdHex, 16);
+
+      const nonceResponse = await fetch(NONCE_URL, { credentials: "include" });
+      const nonceJson = await nonceResponse.json();
+
+      const message = buildSiweMessage({
+        domain: nonceJson.domain || window.location.host,
+        address,
+        uri: nonceJson.uri || window.location.origin + "/",
+        version: "1",
+        chainId,
+        nonce: nonceJson.nonce,
+        statement: nonceJson.statement,
+      });
+
+      const signature = await window.ethereum.request({
+        method: "personal_sign",
+        params: [message, address],
+      });
+
+      form.elements.message.value = message;
+      form.elements.signature.value = signature;
+
+      const verifyResponse = await fetch(VERIFY_URL, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify({ message, signature }),
+      });
+      const verifyJson = await verifyResponse.json();
+      setSiweStatus(
+        status,
+        verifyJson.success ? "success" : "error",
+        verifyJson.success
+          ? `Signed in as ${verifyJson.wallet?.displayName || address}.`
+          : `Sign-in failed: ${verifyJson.message || "unknown error"}`,
+      );
+      if (result) {
+        result.hidden = false;
+        result.textContent = JSON.stringify(verifyJson, null, 2);
+      }
+    } catch (err) {
+      setSiweStatus(status, "error", err.message || String(err));
+    }
+  });
+</script>

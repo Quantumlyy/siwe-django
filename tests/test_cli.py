@@ -133,7 +133,7 @@ def test_write_login_template_drops_file(tmp_path: Path):
     assert written.exists()
     text = written.read_text(encoding="utf-8")
     assert "Sign in with Ethereum" in text
-    assert "personal_sign" in text
+    assert "block siwe_content" in text
 
 
 def test_write_login_template_skips_when_present(tmp_path: Path):
@@ -144,6 +144,16 @@ def test_write_login_template_skips_when_present(tmp_path: Path):
     write_login_template(tmp_path)
 
     assert target.read_text(encoding="utf-8") == "custom"
+
+
+def test_write_login_template_overwrites_when_requested(tmp_path: Path):
+    target = tmp_path / "templates" / "siwe_django" / "siwe_login.html"
+    target.parent.mkdir(parents=True)
+    target.write_text("custom", encoding="utf-8")
+
+    write_login_template(tmp_path, overwrite=True)
+
+    assert "Sign in with Ethereum" in target.read_text(encoding="utf-8")
 
 
 # -----------------------------------------------------------------------------
@@ -167,7 +177,6 @@ def test_init_command_patches_settings_and_urls(fake_django_project: Path):
             "init",
             "--project",
             str(fake_django_project),
-            "--no-template",
             "--no-migrate",
         ],
     )
@@ -190,7 +199,6 @@ def test_init_command_reports_no_op_when_already_configured(
             "init",
             "--project",
             str(fake_django_project),
-            "--no-template",
             "--no-migrate",
         ],
     )
@@ -200,7 +208,6 @@ def test_init_command_reports_no_op_when_already_configured(
             "init",
             "--project",
             str(fake_django_project),
-            "--no-template",
             "--no-migrate",
         ],
     )
@@ -217,7 +224,6 @@ def test_init_command_drf_uses_drf_urls(fake_django_project: Path):
             "--project",
             str(fake_django_project),
             "--drf",
-            "--no-template",
             "--no-migrate",
         ],
     )
@@ -227,12 +233,53 @@ def test_init_command_drf_uses_drf_urls(fake_django_project: Path):
     assert "siwe_django.drf.urls" in urls_text
 
 
-def test_init_command_writes_template_by_default(fake_django_project: Path):
+def test_init_command_skips_template_by_default(fake_django_project: Path):
     runner.invoke(
         app,
         ["init", "--project", str(fake_django_project), "--no-migrate"],
     )
 
+    template = (
+        fake_django_project / "templates" / "siwe_django" / "siwe_login.html"
+    )
+    assert not template.exists()
+
+
+def test_init_command_writes_template_when_requested(fake_django_project: Path):
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "--project",
+            str(fake_django_project),
+            "--template",
+            "--no-migrate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    template = (
+        fake_django_project / "templates" / "siwe_django" / "siwe_login.html"
+    )
+    assert template.exists()
+
+
+def test_init_command_no_template_flag_is_deprecated_no_op(
+    fake_django_project: Path,
+):
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "--project",
+            str(fake_django_project),
+            "--template",
+            "--no-template",
+            "--no-migrate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
     template = (
         fake_django_project / "templates" / "siwe_django" / "siwe_login.html"
     )
@@ -242,7 +289,7 @@ def test_init_command_writes_template_by_default(fake_django_project: Path):
 def test_init_command_aborts_when_settings_missing(tmp_path: Path):
     result = runner.invoke(
         app,
-        ["init", "--project", str(tmp_path), "--no-template", "--no-migrate"],
+        ["init", "--project", str(tmp_path), "--no-migrate"],
     )
 
     assert result.exit_code != 0
@@ -267,6 +314,27 @@ def test_scaffold_templates_command(fake_django_project: Path):
     assert template.exists()
     urls_text = (fake_django_project / "myproj" / "urls.py").read_text()
     assert "siwe_django.urls" in urls_text
+
+
+def test_scaffold_templates_command_overwrites(fake_django_project: Path):
+    template = (
+        fake_django_project / "templates" / "siwe_django" / "siwe_login.html"
+    )
+    template.parent.mkdir(parents=True)
+    template.write_text("custom", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "scaffold-templates",
+            "--project",
+            str(fake_django_project),
+            "--overwrite",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Sign in with Ethereum" in template.read_text(encoding="utf-8")
 
 
 # -----------------------------------------------------------------------------

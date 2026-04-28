@@ -1,0 +1,8 @@
+<form id="siwe-form" method="post" action="{{ verify_url }}" data-siwe-form>
+  {% csrf_token %}
+  {{ form.message }}
+  {{ form.signature }}
+  {% include siwe_button_template_name %}
+</form>
+{% include siwe_status_template_name %}
+{% include siwe_result_template_name %}

@@ -3,6 +3,13 @@ ROOT_URLCONF = "tests.urls"
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "APP_DIRS": True,
+    }
+]
+
 INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
