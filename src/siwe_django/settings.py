@@ -27,6 +27,8 @@ DEFAULTS: dict[str, Any] = {
     "TOKEN_GATES": [],
     "SYNC_TOKEN_GATES_ON_LOGIN": True,
     "AUDIT_ENABLED": True,
+    "NONCE_STORE": "siwe_django.nonce_store.DjangoOrmNonceStore",
+    "REDIS_URL": None,
 }
 
 

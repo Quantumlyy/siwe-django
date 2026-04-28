@@ -16,7 +16,8 @@ from web3 import HTTPProvider
 from .ens import resolve_ens_profile
 from .ethid import fetch_ethid_profile, serialize_ethid_profile
 from .gates import sync_wallet_groups
-from .models import SiweNonce, SiweWallet, caip10_subject, checksum_address
+from .models import SiweWallet, caip10_subject, checksum_address
+from .nonce_store import NonceRecord, get_nonce_store
 from .settings import allowed_chain_ids, get_setting
 
 
@@ -103,7 +104,7 @@ def issue_nonce(
     resources: Iterable[str] | None = None,
     request_id: str = "",
     not_before: datetime | None = None,
-) -> SiweNonce:
+) -> NonceRecord:
     ttl = int(get_setting("NONCE_TTL_SECONDS"))
     session_key = _ensure_session_key(request) if request is not None else ""
     domain = (
@@ -113,7 +114,7 @@ def issue_nonce(
     )
     uri = request_uri(request) if request is not None else (get_setting("URI") or "")
     resources_list = [str(item) for item in resources] if resources else []
-    return SiweNonce.objects.create(
+    return get_nonce_store().save(
         nonce=generate_nonce(),
         session_key=session_key or "",
         domain=domain,
@@ -139,23 +140,17 @@ def _session_key(request) -> str:
     return request.session.session_key or ""
 
 
-def _load_nonce(message_nonce: str, request=None) -> SiweNonce:
-    try:
-        nonce = SiweNonce.objects.get(nonce=message_nonce)
-    except SiweNonce.DoesNotExist as exc:
-        raise InvalidNonce("Invalid or expired SIWE nonce.") from exc
-    if not nonce.is_usable_for_session(_session_key(request)):
+def _load_nonce(message_nonce: str, request=None) -> NonceRecord:
+    record = get_nonce_store().load(message_nonce)
+    if record is None:
         raise InvalidNonce("Invalid or expired SIWE nonce.")
-    return nonce
+    if not record.is_usable_for_session(_session_key(request)):
+        raise InvalidNonce("Invalid or expired SIWE nonce.")
+    return record
 
 
-def _consume_nonce(nonce: SiweNonce) -> None:
-    updated = SiweNonce.objects.filter(
-        nonce=nonce.nonce,
-        consumed_at__isnull=True,
-        expires_at__gt=timezone.now(),
-    ).update(consumed_at=timezone.now())
-    if updated != 1:
+def _consume_nonce(nonce: NonceRecord) -> None:
+    if not get_nonce_store().consume(nonce.nonce):
         raise InvalidNonce("SIWE nonce has already been used.")
 
 
@@ -169,7 +164,7 @@ def _resources_subset(signed: list[str] | None, issued: list[str]) -> bool:
     return signed_set.issubset(issued_set)
 
 
-def _check_optional_fields(siwe_message: SiweMessage, nonce: SiweNonce) -> None:
+def _check_optional_fields(siwe_message: SiweMessage, nonce: NonceRecord) -> None:
     issued_resources = list(nonce.resources or [])
     if issued_resources and not _resources_subset(
         siwe_message.resources, issued_resources
@@ -483,7 +478,7 @@ def primary_wallet_for_user(user) -> SiweWallet | None:
     return SiweWallet.objects.filter(user=user, is_primary=True).first()
 
 
-def eth_identity_kit_nonce_payload(nonce: SiweNonce) -> dict[str, Any]:
+def eth_identity_kit_nonce_payload(nonce: NonceRecord) -> dict[str, Any]:
     message_params: dict[str, Any] = {
         "domain": nonce.domain,
         "uri": nonce.uri,

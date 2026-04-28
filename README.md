@@ -263,6 +263,8 @@ All settings live under `SIWE_DJANGO`.
 | `RATE_LIMITS` | `{}` | Optional per-view limits like `{ "verify": "5/m" }`. |
 | `RATE_LIMIT_TRUST_X_FORWARDED_FOR` | `False` | Use the first `X-Forwarded-For` address for rate limits. Enable only behind a trusted proxy that strips client-supplied forwarding headers. |
 | `AUDIT_ENABLED` | `True` | Persist sign-in events to `SiweAuthEvent`. Disable to forward audit data through your own pipeline. |
+| `NONCE_STORE` | `siwe_django.nonce_store.DjangoOrmNonceStore` | Dotted path to the nonce store class. Swap for `siwe_django.nonce_store.RedisNonceStore` (extra: `pip install "siwe-django[redis]"`) for a Redis-backed store. |
+| `REDIS_URL` | `None` | Used by `RedisNonceStore` when no client is injected. |
 | `TOKEN_GATES` | `[]` | Optional group sync gates. |
 | `SYNC_TOKEN_GATES_ON_LOGIN` | `True` | Sync token gates after login/linking. |
 
