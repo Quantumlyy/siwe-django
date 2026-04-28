@@ -97,6 +97,26 @@ python manage.py migrate
 The server consumes each nonce after the first successful verification, so replay
 attempts fail.
 
+## Showcase Demo
+
+The repository includes a full Django + Vite React demo under
+`examples/showcase/`. It uses the local package, Ethereum Identity Kit, Wagmi,
+Viem, DRF, Django sessions, ENS/EthID profile enrichment, linked wallets, and a
+custom local token gate that syncs the `demo-holders` Django group.
+
+```bash
+cd examples/showcase/backend
+uv run python manage.py migrate
+uv run python manage.py runserver 127.0.0.1:8000
+
+cd ../frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. See `examples/showcase/README.md` for optional
+RPC, ENS, EthID, and demo gate environment variables.
+
 ## Ethereum Identity Kit
 
 Ethereum Identity Kit is a React component library for SIWE, ENS profiles, and
