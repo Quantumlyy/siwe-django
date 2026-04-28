@@ -1,7 +1,16 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
-from django.http import HttpRequest, JsonResponse
+from django.http import (
+    FileResponse,
+    HttpRequest,
+    HttpResponse,
+    HttpResponseNotFound,
+    JsonResponse,
+)
 from django.views.decorators.http import require_http_methods
 
 from siwe_django.gates import sync_wallet_groups
@@ -41,6 +50,30 @@ def _empty_session() -> dict:
         "groups": [],
         "gates": _gate_payload(set()),
     }
+
+
+def _index_path() -> Path | None:
+    candidates = [
+        Path(directory) / "index.html"
+        for directory in getattr(settings, "STATICFILES_DIRS", [])
+    ]
+    static_root = getattr(settings, "STATIC_ROOT", None)
+    if static_root:
+        candidates.append(Path(static_root) / "index.html")
+    return next((path for path in candidates if path.exists()), None)
+
+
+@require_http_methods(["GET"])
+def spa(request: HttpRequest, path: str = "") -> HttpResponse:
+    """Serve the built React app for any unmatched path.
+
+    Returns 404 in dev (no built frontend present) so the Vite dev server is
+    the canonical SPA host during local development.
+    """
+    index = _index_path()
+    if index is None:
+        return HttpResponseNotFound("Frontend bundle not found.")
+    return FileResponse(index.open("rb"), content_type="text/html")
 
 
 @require_http_methods(["GET"])
