@@ -135,6 +135,32 @@ def test_link_and_unlink_wallet(client):
 
 
 @pytest.mark.django_db
+def test_unlink_primary_promotes_next_wallet(client):
+    first = signed_payload(client)
+    post_json(
+        client,
+        "/siwe/verify/",
+        {"message": first["message"], "signature": first["signature"]},
+    )
+    second = signed_payload(client)
+    post_json(
+        client,
+        "/siwe/link/",
+        {"message": second["message"], "signature": second["signature"]},
+    )
+
+    wallets = client.get("/siwe/wallets/").json()["wallets"]
+    primary_id = next(wallet["id"] for wallet in wallets if wallet["isPrimary"])
+
+    delete_response = client.delete(f"/siwe/wallets/{primary_id}/")
+
+    assert delete_response.status_code == 200
+    remaining = client.get("/siwe/wallets/").json()["wallets"]
+    assert len(remaining) == 1
+    assert remaining[0]["isPrimary"] is True
+
+
+@pytest.mark.django_db
 def test_link_conflict_returns_409(client):
     first_user_wallet = signed_payload(client)
     post_json(
