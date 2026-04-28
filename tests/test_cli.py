@@ -264,6 +264,28 @@ def test_init_command_writes_template_when_requested(fake_django_project: Path):
     assert template.exists()
 
 
+def test_init_command_no_template_flag_is_deprecated_no_op(
+    fake_django_project: Path,
+):
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "--project",
+            str(fake_django_project),
+            "--template",
+            "--no-template",
+            "--no-migrate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    template = (
+        fake_django_project / "templates" / "siwe_django" / "siwe_login.html"
+    )
+    assert template.exists()
+
+
 def test_init_command_aborts_when_settings_missing(tmp_path: Path):
     result = runner.invoke(
         app,

@@ -82,7 +82,7 @@ def init_command(
         use_drf=drf,
         domain=domain,
         uri=uri,
-        scaffold_template=template and not no_template,
+        scaffold_template=template,
         run_migrate=not no_migrate,
         manage_path=init_cmd.detect_manage_py(project),
     )
