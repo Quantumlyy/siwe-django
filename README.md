@@ -162,12 +162,29 @@ urlpatterns = [
 ]
 ```
 
-The bundled `siwe_django/siwe_login.html` is intentionally minimal and can be
-overridden in your project templates or copied with:
+The bundled `siwe_django/siwe_login.html` is intentionally unstyled. It keeps
+only the stable DOM hooks used by the starter script and can be overridden in
+your project templates or copied with:
 
 ```bash
 siwe-django scaffold-templates
 ```
+
+The starter is assembled from replaceable partials:
+
+| Context key | Default template |
+| --- | --- |
+| `siwe_form_template_name` | `siwe_django/partials/form.html` |
+| `siwe_button_template_name` | `siwe_django/partials/button.html` |
+| `siwe_status_template_name` | `siwe_django/partials/status.html` |
+| `siwe_result_template_name` | `siwe_django/partials/result.html` |
+| `siwe_script_template_name` | `siwe_django/partials/script.html` |
+
+Override those keys with `SiweLoginView.as_view(extra_context={...})` or by
+subclassing `SiweLoginView` and replacing the matching `*_template_name`
+attribute. The default script expects the rendered form/button/status/result
+partials to keep the `siwe-form`, `siwe-submit`, `siwe-status`, and
+`siwe-result` element IDs.
 
 ### Optional EIP-4361 fields
 

@@ -12,7 +12,8 @@ class SiweLoginView(FormView):
     """Starter SIWE login view.
 
     The vanilla URL namespace is preferred, with DRF URL names accepted as a
-    fallback for projects that mount ``siwe_django.drf.urls``.
+    fallback for projects that mount ``siwe_django.drf.urls``. Template partial
+    names can be overridden on a subclass or through ``extra_context``.
     """
 
     template_name = "siwe_django/siwe_login.html"
@@ -21,6 +22,11 @@ class SiweLoginView(FormView):
     verify_url_name = "siwe_django:verify"
     nonce_url_fallback_names = ("siwe_django_drf:nonce",)
     verify_url_fallback_names = ("siwe_django_drf:verify",)
+    form_template_name = "siwe_django/partials/form.html"
+    button_template_name = "siwe_django/partials/button.html"
+    status_template_name = "siwe_django/partials/status.html"
+    result_template_name = "siwe_django/partials/result.html"
+    script_template_name = "siwe_django/partials/script.html"
 
     def _reverse_first(self, primary: str, fallbacks: Iterable[str]) -> str:
         error = None
@@ -48,4 +54,14 @@ class SiweLoginView(FormView):
             context["nonce_url"] = self.get_nonce_url()
         if "verify_url" not in context:
             context["verify_url"] = self.get_verify_url()
+        if "siwe_form_template_name" not in context:
+            context["siwe_form_template_name"] = self.form_template_name
+        if "siwe_button_template_name" not in context:
+            context["siwe_button_template_name"] = self.button_template_name
+        if "siwe_status_template_name" not in context:
+            context["siwe_status_template_name"] = self.status_template_name
+        if "siwe_result_template_name" not in context:
+            context["siwe_result_template_name"] = self.result_template_name
+        if "siwe_script_template_name" not in context:
+            context["siwe_script_template_name"] = self.script_template_name
         return context
