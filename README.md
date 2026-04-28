@@ -96,6 +96,9 @@ python manage.py migrate
 - `DELETE /wallets/<id>/`: unlinks a wallet.
 - `GET /profile/<address-or-ens>/`: proxies a display-ready Ethereum Identity
   Kit profile from the Eth Follow public API.
+- `POST /reauth/`: re-verifies a SIWE signature for the currently authenticated
+  user (step-up). Stamps the session so `@require_recent_siwe(seconds=N)` can
+  gate sensitive actions.
 
 ## Frontend Flow
 

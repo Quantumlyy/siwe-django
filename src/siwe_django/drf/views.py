@@ -21,8 +21,10 @@ from siwe_django.services import (
     serialize_user,
     serialize_wallet,
     unlink_wallet,
+    verify_siwe_message,
 )
 from siwe_django.settings import get_setting
+from siwe_django.stepup import mark_recent_siwe
 from siwe_django.views import SIWE_BACKEND
 
 from .serializers import SiweVerifySerializer
@@ -78,6 +80,7 @@ class VerifyView(APIView):
             )
             return _error(exc)
         auth_login(request, result.user, backend=SIWE_BACKEND)
+        mark_recent_siwe(request)
         record_event(
             request,
             SiweAuthEvent.EVENT_VERIFY_SUCCESS,
@@ -91,6 +94,59 @@ class VerifyView(APIView):
                 "wallet": serialize_wallet(result.wallet),
             }
         )
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class ReauthView(APIView):
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return Response(
+                {"success": False, "error": "not_authenticated"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        serializer = SiweVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            identity = verify_siwe_message(
+                serializer.validated_data["message"],
+                serializer.validated_data["signature"],
+                request,
+            )
+        except SiweAuthError as exc:
+            record_event(
+                request,
+                SiweAuthEvent.EVENT_VERIFY_FAILURE,
+                user=request.user,
+                success=False,
+                error_code=exc.code,
+                metadata={"stepup": True},
+            )
+            return _error(exc)
+
+        linked_addresses = set(
+            SiweWallet.objects.filter(user=request.user).values_list(
+                "address", flat=True
+            )
+        )
+        if identity.address not in linked_addresses:
+            return Response(
+                {
+                    "success": False,
+                    "error": "wallet_not_linked",
+                    "message": "Signed wallet is not linked to the current user.",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        mark_recent_siwe(request)
+        record_event(
+            request,
+            SiweAuthEvent.EVENT_VERIFY_SUCCESS,
+            address=identity.address,
+            user=request.user,
+            metadata={"stepup": True},
+        )
+        return Response({"success": True, "address": identity.address})
 
 
 class MeView(APIView):

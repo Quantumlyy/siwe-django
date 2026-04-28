@@ -24,8 +24,10 @@ from .services import (
     serialize_user,
     serialize_wallet,
     unlink_wallet,
+    verify_siwe_message,
 )
 from .settings import get_setting
+from .stepup import mark_recent_siwe
 
 SIWE_BACKEND = "siwe_django.backend.SiweBackend"
 
@@ -131,6 +133,7 @@ def verify(request: HttpRequest) -> JsonResponse:
         return _error_response(exc)
 
     auth_login(request, result.user, backend=SIWE_BACKEND)
+    mark_recent_siwe(request)
     record_event(
         request,
         SiweAuthEvent.EVENT_VERIFY_SUCCESS,
@@ -144,6 +147,58 @@ def verify(request: HttpRequest) -> JsonResponse:
             "wallet": serialize_wallet(result.wallet),
         }
     )
+
+
+@csrf_protect
+@rate_limit("verify")
+@require_http_methods(["POST"])
+def reauth(request: HttpRequest) -> JsonResponse:
+    """Re-verify a SIWE signature for the currently authenticated session."""
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"success": False, "error": "not_authenticated"},
+            status=401,
+        )
+    try:
+        body = _json_body(request)
+        identity = verify_siwe_message(
+            body.get("message", ""), body.get("signature", ""), request
+        )
+    except SiweAuthError as exc:
+        record_event(
+            request,
+            SiweAuthEvent.EVENT_VERIFY_FAILURE,
+            user=request.user,
+            success=False,
+            error_code=exc.code,
+            metadata={"stepup": True},
+        )
+        return _error_response(exc)
+
+    user_wallet_addresses = set(
+        SiweWallet.objects.filter(user=request.user).values_list(
+            "address", flat=True
+        )
+    )
+    if identity.address not in user_wallet_addresses:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "wallet_not_linked",
+                "message": "Signed wallet is not linked to the current user.",
+            },
+            status=403,
+        )
+
+    mark_recent_siwe(request)
+    record_event(
+        request,
+        SiweAuthEvent.EVENT_VERIFY_SUCCESS,
+        address=identity.address,
+        user=request.user,
+        metadata={"stepup": True},
+    )
+    return JsonResponse({"success": True, "address": identity.address})
 
 
 @require_http_methods(["GET"])
