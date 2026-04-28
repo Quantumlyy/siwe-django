@@ -13,6 +13,8 @@ from django.http import HttpRequest
 
 from .models import SiweAuthEvent
 from .settings import get_setting
+from .webhooks import dispatch as dispatch_webhook
+from .webhooks import event_payload
 
 
 def _client_ip(request: HttpRequest) -> str | None:
@@ -42,6 +44,17 @@ def record_event(
     Disabling skips writes entirely so apps that route audit data through a
     different sink (e.g. a SIEM) can avoid the DB cost.
     """
+    user_pk = getattr(user, "pk", None) if user is not None else None
+    payload = event_payload(
+        event,
+        address=address,
+        user_id=str(user_pk) if user_pk else None,
+        success=success,
+        error_code=error_code,
+        metadata=metadata,
+    )
+    dispatch_webhook(event, payload)
+
     if not get_setting("AUDIT_ENABLED"):
         return None
     ip = _client_ip(request) if request is not None else None

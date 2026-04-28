@@ -265,6 +265,8 @@ All settings live under `SIWE_DJANGO`.
 | `AUDIT_ENABLED` | `True` | Persist sign-in events to `SiweAuthEvent`. Disable to forward audit data through your own pipeline. |
 | `NONCE_STORE` | `siwe_django.nonce_store.DjangoOrmNonceStore` | Dotted path to the nonce store class. Swap for `siwe_django.nonce_store.RedisNonceStore` (extra: `pip install "siwe-django[redis]"`) for a Redis-backed store. |
 | `REDIS_URL` | `None` | Used by `RedisNonceStore` when no client is injected. |
+| `WEBHOOKS` | `[]` | Subscribers shaped `{event, url, secret, timeout?}`. `event: "*"` matches every audit event. Bodies are HMAC-SHA256 signed in the `X-Siwe-Signature` header. |
+| `WEBHOOK_DISPATCHER` | `None` | Dotted path to a callable `(event, payload, subscriptions)` invoked instead of the synchronous urllib delivery (use to wire Celery / RQ). |
 | `TOKEN_GATES` | `[]` | Optional group sync gates. |
 | `SYNC_TOKEN_GATES_ON_LOGIN` | `True` | Sync token gates after login/linking. |
 

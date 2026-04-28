@@ -29,6 +29,8 @@ DEFAULTS: dict[str, Any] = {
     "AUDIT_ENABLED": True,
     "NONCE_STORE": "siwe_django.nonce_store.DjangoOrmNonceStore",
     "REDIS_URL": None,
+    "WEBHOOKS": [],
+    "WEBHOOK_DISPATCHER": None,
 }
 
 
