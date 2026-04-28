@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from string import Template
@@ -106,7 +107,7 @@ def scaffold_template(options: InitOptions) -> list[str]:
 def run_migrate(options: InitOptions) -> list[str]:
     if not options.run_migrate or options.manage_path is None:
         return []
-    cmd = ["python", str(options.manage_path), "migrate", "--noinput"]
+    cmd = [sys.executable, str(options.manage_path), "migrate", "--noinput"]
     completed = subprocess.run(
         cmd,
         cwd=options.project_root,
