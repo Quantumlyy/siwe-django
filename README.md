@@ -9,6 +9,27 @@ existing Django users, an optional Ethereum-native user model, optional Django
 REST Framework views, ENS and Ethereum Identity Kit profile enrichment, and
 token-gated Django group sync.
 
+## Ethereum identity stack
+
+`siwe-django` is built to make Django a first-class backend for the best
+projects in Ethereum identity:
+
+- [Sign in with Ethereum](https://docs.siwe.xyz/) for wallet authentication.
+  The Python side uses the official
+  [`signinwithethereum`](https://pypi.org/project/signinwithethereum/)
+  distribution from
+  [`siwe-py`](https://github.com/signinwithethereum/siwe-py), imported as
+  `siwe`.
+- [Ethereum Identity Kit](https://ethidentitykit.com/) for SIWE UX, profiles,
+  avatars, and social components.
+- [Ethereum Follow Protocol](https://efp.app/) for portable onchain social
+  graph data and EFP-powered gates.
+- [EthID](https://ethid.org/) for the Ethereum identity stack and profile APIs.
+- [Grails](https://grails.app/) for ENS management and market workflows.
+
+If you are building with Ethereum accounts, these are the defaults we recommend
+and the ecosystem primitives this package is designed to compose with.
+
 ## Install
 
 ```bash
