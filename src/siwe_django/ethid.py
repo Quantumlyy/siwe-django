@@ -129,14 +129,25 @@ def fetch_efp_follower_state(
     viewer: str, target: str
 ) -> dict[str, bool]:
     """Return ``{follow, block, mute}`` for "does ``viewer`` follow ``target``"."""
+    data, _ = fetch_efp_follower_state_checked(viewer, target)
+    return data
+
+
+def fetch_efp_follower_state_checked(
+    viewer: str, target: str
+) -> tuple[dict[str, bool], bool]:
+    """Return follower state plus whether EthID returned a state document."""
     viewer_q = quote(viewer, safe="")
     target_q = quote(target, safe="")
     data = _fetch_profile_part(f"users/{viewer_q}/follower-state/{target_q}")
-    return {
-        "follow": bool(data.get("follow")),
-        "block": bool(data.get("block")),
-        "mute": bool(data.get("mute")),
-    }
+    return (
+        {
+            "follow": bool(data.get("follow")),
+            "block": bool(data.get("block")),
+            "mute": bool(data.get("mute")),
+        },
+        bool(data),
+    )
 
 
 def fetch_efp_followers(
