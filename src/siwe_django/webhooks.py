@@ -82,7 +82,13 @@ def deliver(subscription: Mapping[str, Any], payload: Mapping[str, Any]) -> bool
     if not url or not secret:
         logger.warning("Skipping webhook with missing url/secret.")
         return False
-    body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    try:
+        body = json.dumps(
+            payload, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+    except (TypeError, ValueError):
+        logger.exception("Webhook payload for %s is not JSON-serializable.", url)
+        return False
     headers = {
         "Content-Type": "application/json",
         "User-Agent": "siwe-django-webhook",

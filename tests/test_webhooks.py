@@ -117,6 +117,18 @@ def test_deliver_returns_false_on_network_error(mocker):
     )
 
 
+def test_deliver_returns_false_when_payload_not_json_serialisable(mocker):
+    urlopen = mocker.patch("siwe_django.webhooks.urlrequest.urlopen")
+
+    class _NotSerialisable:
+        pass
+
+    payload = {"event": "verify_succeeded", "metadata": {"obj": _NotSerialisable()}}
+
+    assert deliver({"url": "https://x", "secret": "y"}, payload) is False
+    assert urlopen.called is False
+
+
 @override_settings(
     SIWE_DJANGO={
         "DOMAIN": "testserver",
