@@ -7,6 +7,7 @@ service layer to HTTP concerns).
 
 from __future__ import annotations
 
+from ipaddress import ip_address
 from typing import Any
 
 from django.http import HttpRequest
@@ -17,11 +18,20 @@ from .webhooks import dispatch as dispatch_webhook
 from .webhooks import event_payload
 
 
+def _validated_ip(value: str | None) -> str | None:
+    if not value:
+        return None
+    try:
+        return str(ip_address(value.strip()))
+    except ValueError:
+        return None
+
+
 def _client_ip(request: HttpRequest) -> str | None:
     forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
     if forwarded and get_setting("RATE_LIMIT_TRUST_X_FORWARDED_FOR"):
-        return forwarded.split(",", 1)[0].strip() or None
-    return request.META.get("REMOTE_ADDR") or None
+        return _validated_ip(forwarded.split(",", 1)[0])
+    return _validated_ip(request.META.get("REMOTE_ADDR"))
 
 
 def _user_agent(request: HttpRequest) -> str:

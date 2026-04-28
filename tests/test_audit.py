@@ -68,6 +68,39 @@ def test_record_event_uses_x_forwarded_for_when_trusted():
 
 
 @pytest.mark.django_db
+def test_record_event_ignores_invalid_remote_addr():
+    event = record_event(
+        _request(ip="not-an-ip"),
+        SiweAuthEvent.EVENT_NONCE_ISSUED,
+    )
+
+    assert event is not None
+    assert event.ip is None
+
+
+@pytest.mark.django_db
+@override_settings(
+    SIWE_DJANGO={
+        "DOMAIN": "testserver",
+        "URI": "http://testserver/",
+        "RATE_LIMIT_TRUST_X_FORWARDED_FOR": True,
+    }
+)
+def test_record_event_ignores_invalid_x_forwarded_for():
+    factory = RequestFactory()
+    request = factory.get(
+        "/",
+        REMOTE_ADDR="10.0.0.1",
+        HTTP_X_FORWARDED_FOR="definitely-not-an-ip, 198.51.100.7",
+    )
+
+    event = record_event(request, SiweAuthEvent.EVENT_NONCE_ISSUED)
+
+    assert event is not None
+    assert event.ip is None
+
+
+@pytest.mark.django_db
 def test_nonce_endpoint_records_event(client):
     response = client.get("/siwe/nonce/")
 
