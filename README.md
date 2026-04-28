@@ -262,6 +262,7 @@ All settings live under `SIWE_DJANGO`.
 | `USER_FACTORY` | built-in | Dotted path for custom user creation. |
 | `RATE_LIMITS` | `{}` | Optional per-view limits like `{ "verify": "5/m" }`. |
 | `RATE_LIMIT_TRUST_X_FORWARDED_FOR` | `False` | Use the first `X-Forwarded-For` address for rate limits. Enable only behind a trusted proxy that strips client-supplied forwarding headers. |
+| `AUDIT_ENABLED` | `True` | Persist sign-in events to `SiweAuthEvent`. Disable to forward audit data through your own pipeline. |
 | `TOKEN_GATES` | `[]` | Optional group sync gates. |
 | `SYNC_TOKEN_GATES_ON_LOGIN` | `True` | Sync token gates after login/linking. |
 

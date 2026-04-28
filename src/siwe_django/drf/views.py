@@ -8,7 +8,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from siwe_django.models import SiweWallet
+from siwe_django.audit import record_event
+from siwe_django.models import SiweAuthEvent, SiweWallet
 from siwe_django.services import (
     SiweAuthError,
     authenticate_siwe,
@@ -41,6 +42,7 @@ class NonceView(APIView):
 
     def get(self, request):
         nonce = issue_nonce(request)
+        record_event(request, SiweAuthEvent.EVENT_NONCE_ISSUED)
         return Response(
             {
                 "nonce": nonce.nonce,
@@ -68,8 +70,20 @@ class VerifyView(APIView):
                 request,
             )
         except SiweAuthError as exc:
+            record_event(
+                request,
+                SiweAuthEvent.EVENT_VERIFY_FAILURE,
+                success=False,
+                error_code=exc.code,
+            )
             return _error(exc)
         auth_login(request, result.user, backend=SIWE_BACKEND)
+        record_event(
+            request,
+            SiweAuthEvent.EVENT_VERIFY_SUCCESS,
+            address=result.identity.address,
+            user=result.user,
+        )
         return Response(
             {
                 "success": True,
@@ -98,7 +112,9 @@ class MeView(APIView):
 
 class LogoutView(APIView):
     def post(self, request):
+        user = request.user if request.user.is_authenticated else None
         auth_logout(request)
+        record_event(request, SiweAuthEvent.EVENT_LOGOUT, user=user)
         return Response({"success": True})
 
 
@@ -119,7 +135,20 @@ class LinkView(APIView):
                 request,
             )
         except SiweAuthError as exc:
+            record_event(
+                request,
+                SiweAuthEvent.EVENT_LINK_FAILURE,
+                user=request.user,
+                success=False,
+                error_code=exc.code,
+            )
             return _error(exc)
+        record_event(
+            request,
+            SiweAuthEvent.EVENT_LINK_SUCCESS,
+            address=wallet.address,
+            user=request.user,
+        )
         return Response({"success": True, "wallet": serialize_wallet(wallet)})
 
 
@@ -152,6 +181,12 @@ class WalletDetailView(APIView):
             unlink_wallet(request.user, wallet_id)
         except SiweAuthError as exc:
             return _error(exc)
+        record_event(
+            request,
+            SiweAuthEvent.EVENT_UNLINK,
+            user=request.user,
+            metadata={"wallet_id": wallet_id},
+        )
         return Response({"success": True})
 
 

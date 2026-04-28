@@ -26,6 +26,7 @@ DEFAULTS: dict[str, Any] = {
     "RATE_LIMIT_TRUST_X_FORWARDED_FOR": False,
     "TOKEN_GATES": [],
     "SYNC_TOKEN_GATES_ON_LOGIN": True,
+    "AUDIT_ENABLED": True,
 }
 
 
