@@ -47,10 +47,16 @@ def init_command(
         "--uri",
         help="SIWE URI value to write into settings.",
     ),
+    template: bool = typer.Option(
+        False,
+        "--template",
+        help="Drop the starter siwe_login.html template.",
+    ),
     no_template: bool = typer.Option(
         False,
         "--no-template",
-        help="Skip dropping the bundled siwe_login.html template.",
+        help="Deprecated no-op. Templates are skipped unless --template is set.",
+        hidden=True,
     ),
     no_migrate: bool = typer.Option(
         False,
@@ -76,7 +82,7 @@ def init_command(
         use_drf=drf,
         domain=domain,
         uri=uri,
-        scaffold_template=not no_template,
+        scaffold_template=template and not no_template,
         run_migrate=not no_migrate,
         manage_path=init_cmd.detect_manage_py(project),
     )
@@ -94,13 +100,18 @@ def scaffold_command(
     drf: bool = typer.Option(
         False, "--drf", help="Mount the DRF urls instead of the vanilla ones."
     ),
+    overwrite: bool = typer.Option(
+        False,
+        "--overwrite",
+        help="Replace an existing starter template.",
+    ),
 ) -> None:
-    """Drop a working Django sign-in template + URL include into the project."""
+    """Drop a starter Django sign-in template + URL include into the project."""
     from .scaffold import patch_root_urls, write_login_template
 
     console = Console()
     project = project.resolve()
-    written = write_login_template(project)
+    written = write_login_template(project, overwrite=overwrite)
     console.print(f"[green]✓[/green] wrote {written}")
     settings_path = settings or init_cmd.detect_settings_path(project)
     if settings_path is None:

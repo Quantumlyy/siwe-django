@@ -1,29 +1,38 @@
-{% load static %}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Sign in with Ethereum</title>
+  <title>{% block siwe_title %}Sign in with Ethereum{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% block siwe_styles %}
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 4rem auto; }
-    button { padding: 0.75rem 1.25rem; font-size: 1rem; cursor: pointer; }
-    pre { background: #f5f5f5; padding: 1rem; border-radius: 0.5rem; overflow: auto; }
-    .ok { color: #047857; }
-    .err { color: #b91c1c; }
+    body { font-family: system-ui, sans-serif; max-width: 34rem; margin: 4rem auto; padding: 0 1rem; }
+    button { min-height: 2.75rem; padding: 0 1rem; font: inherit; cursor: pointer; }
+    pre { overflow: auto; padding: 1rem; background: #f5f5f5; }
+    .siwe-success { color: #047857; }
+    .siwe-error { color: #b91c1c; }
   </style>
+  {% endblock %}
 </head>
 <body>
-  <h1>Sign in with Ethereum</h1>
-  <p>Click the button to request a nonce, sign it with your wallet, and verify
-     the signature with the server.</p>
-  <button id="signin">Sign in with Ethereum</button>
-  <p id="status"></p>
-  <pre id="result" hidden></pre>
+  {% block siwe_content %}
+  <main>
+    <h1>Sign in with Ethereum</h1>
+    <form id="siwe-form" method="post" action="{{ verify_url }}">
+      {% csrf_token %}
+      {{ form.message }}
+      {{ form.signature }}
+      <button id="siwe-submit" type="button">Sign in with Ethereum</button>
+    </form>
+    <p id="siwe-status" role="status"></p>
+    <pre id="siwe-result" hidden></pre>
+  </main>
+  {% endblock %}
 
+  {% block siwe_scripts %}
   <script>
-    const NONCE_URL = "{{ nonce_url }}";
-    const VERIFY_URL = "{{ verify_url }}";
+    const NONCE_URL = "{{ nonce_url|escapejs }}";
+    const VERIFY_URL = "{{ verify_url|escapejs }}";
 
     function getCookie(name) {
       const value = `; ${document.cookie}`;
@@ -50,15 +59,16 @@
       return lines.join("\n");
     }
 
-    document.getElementById("signin").addEventListener("click", async () => {
-      const status = document.getElementById("status");
-      const result = document.getElementById("result");
+    document.getElementById("siwe-submit").addEventListener("click", async () => {
+      const form = document.getElementById("siwe-form");
+      const status = document.getElementById("siwe-status");
+      const result = document.getElementById("siwe-result");
       status.className = "";
       result.hidden = true;
 
       if (!window.ethereum) {
-        status.className = "err";
-        status.textContent = "No window.ethereum detected. Install MetaMask or similar.";
+        status.className = "siwe-error";
+        status.textContent = "No wallet provider detected.";
         return;
       }
 
@@ -87,6 +97,9 @@
           params: [message, address],
         });
 
+        form.elements.message.value = message;
+        form.elements.signature.value = signature;
+
         const verifyResponse = await fetch(VERIFY_URL, {
           method: "POST",
           credentials: "include",
@@ -97,17 +110,18 @@
           body: JSON.stringify({ message, signature }),
         });
         const verifyJson = await verifyResponse.json();
-        status.className = verifyJson.success ? "ok" : "err";
+        status.className = verifyJson.success ? "siwe-success" : "siwe-error";
         status.textContent = verifyJson.success
           ? `Signed in as ${verifyJson.wallet?.displayName || address}.`
           : `Sign-in failed: ${verifyJson.message || "unknown error"}`;
         result.hidden = false;
         result.textContent = JSON.stringify(verifyJson, null, 2);
       } catch (err) {
-        status.className = "err";
+        status.className = "siwe-error";
         status.textContent = err.message || String(err);
       }
     });
   </script>
+  {% endblock %}
 </body>
 </html>

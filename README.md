@@ -34,7 +34,8 @@ pip install "siwe-django[cli]"
 siwe-django init        # patch settings.py + urls.py
 siwe-django doctor      # diagnose an existing install (CI-friendly --json)
 siwe-django init --template  # also add the starter sign-in template
-siwe-django scaffold-templates  # add or refresh the starter sign-in template
+siwe-django scaffold-templates  # add the starter sign-in template
+siwe-django scaffold-templates --overwrite  # refresh the starter template
 siwe-django migrate-from-payton # rewrite payton/django-siwe-auth references
 ```
 
