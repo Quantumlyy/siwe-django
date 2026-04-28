@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from siwe_django.audit import record_event
+from siwe_django.drf.schema import SIWE_TAG, extend_schema
 from siwe_django.models import SiweAuthEvent, SiweWallet
 from siwe_django.services import (
     SiweAuthError,
@@ -38,6 +39,15 @@ def _error(error: SiweAuthError) -> Response:
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
+@extend_schema(
+    tags=[SIWE_TAG],
+    summary="Issue a SIWE nonce",
+    description=(
+        "Returns a single-use nonce, the expected `domain` and `uri`, and the"
+        " EthereumIdentityKit metadata clients should embed when preparing the"
+        " EIP-4361 message."
+    ),
+)
 class NonceView(APIView):
     authentication_classes = []
     permission_classes = []
@@ -58,6 +68,14 @@ class NonceView(APIView):
 
 
 @method_decorator(csrf_protect, name="dispatch")
+@extend_schema(
+    tags=[SIWE_TAG],
+    summary="Verify a SIWE message + signature",
+    description=(
+        "Verifies the EIP-4361 message against the bound nonce, logs the user"
+        " in, syncs gates, and returns the user/wallet payload."
+    ),
+)
 class VerifyView(APIView):
     authentication_classes = []
     permission_classes = []
@@ -97,6 +115,15 @@ class VerifyView(APIView):
 
 
 @method_decorator(csrf_protect, name="dispatch")
+@extend_schema(
+    tags=[SIWE_TAG],
+    summary="Step-up: re-verify SIWE for the current user",
+    description=(
+        "Re-verifies a SIWE message for the authenticated user. Updates the"
+        " session's `siwe_last_verified_at` so `@require_recent_siwe` can gate"
+        " sensitive actions."
+    ),
+)
 class ReauthView(APIView):
     def post(self, request):
         if not request.user.is_authenticated:
@@ -149,6 +176,10 @@ class ReauthView(APIView):
         return Response({"success": True, "address": identity.address})
 
 
+@extend_schema(
+    tags=[SIWE_TAG],
+    summary="Current SIWE session",
+)
 class MeView(APIView):
     def get(self, request):
         if not request.user.is_authenticated:
@@ -166,6 +197,7 @@ class MeView(APIView):
         )
 
 
+@extend_schema(tags=[SIWE_TAG], summary="Destroy the SIWE session")
 class LogoutView(APIView):
     def post(self, request):
         user = request.user if request.user.is_authenticated else None
@@ -174,6 +206,9 @@ class LogoutView(APIView):
         return Response({"success": True})
 
 
+@extend_schema(
+    tags=[SIWE_TAG], summary="Link an additional wallet to the current user"
+)
 class LinkView(APIView):
     def post(self, request):
         if not request.user.is_authenticated:
@@ -208,6 +243,7 @@ class LinkView(APIView):
         return Response({"success": True, "wallet": serialize_wallet(wallet)})
 
 
+@extend_schema(tags=[SIWE_TAG], summary="List wallets linked to the current user")
 class WalletsView(APIView):
     def get(self, request):
         if not request.user.is_authenticated:
@@ -226,6 +262,7 @@ class WalletsView(APIView):
         )
 
 
+@extend_schema(tags=[SIWE_TAG], summary="Unlink a wallet from the current user")
 class WalletDetailView(APIView):
     def delete(self, request, wallet_id: int):
         if not request.user.is_authenticated:
@@ -246,6 +283,10 @@ class WalletDetailView(APIView):
         return Response({"success": True})
 
 
+@extend_schema(
+    tags=[SIWE_TAG],
+    summary="Public Ethereum Identity Kit profile proxy",
+)
 class ProfileView(APIView):
     authentication_classes = []
     permission_classes = []

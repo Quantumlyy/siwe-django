@@ -35,6 +35,7 @@ dependencies = [
 [project.optional-dependencies]
 drf = ["djangorestframework>=3.16"]
 redis = ["redis>=5.0"]
+openapi = ["drf-spectacular>=0.27"]
 cli = [
   "typer>=0.12",
   "questionary>=2.0",
