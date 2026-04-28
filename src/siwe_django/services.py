@@ -210,7 +210,7 @@ def default_user_factory(identity: SiweIdentity, request=None):
     if username_field == "email":
         value = f"{identity.address.lower()}@ethereum.local"
     else:
-        value = f"siwe_{identity.chain_id}_{identity.address[2:].lower()}"
+        value = f"siwe_{identity.address[2:].lower()}"
 
     field = UserModel._meta.get_field(username_field)
     max_length = getattr(field, "max_length", None)

@@ -33,6 +33,32 @@ def test_verify_logs_in_and_creates_user_wallet(client, django_user_model):
 
 
 @pytest.mark.django_db
+def test_default_user_factory_reuses_user_across_chains(client, django_user_model):
+    account = Account.create()
+
+    first = signed_payload(client, account, chain_id=1)
+    first_response = post_json(
+        client,
+        "/siwe/verify/",
+        {"message": first["message"], "signature": first["signature"]},
+    )
+    second = signed_payload(client, account, chain_id=11155111)
+    second_response = post_json(
+        client,
+        "/siwe/verify/",
+        {"message": second["message"], "signature": second["signature"]},
+    )
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+    assert django_user_model.objects.count() == 1
+    user = django_user_model.objects.get()
+    assert user.username == f"siwe_{account.address[2:].lower()}"
+    assert SiweWallet.objects.count() == 2
+    assert set(SiweWallet.objects.values_list("user_id", flat=True)) == {user.pk}
+
+
+@pytest.mark.django_db
 def test_nonce_response_includes_eth_identity_kit_metadata(client):
     response = client.get("/siwe/nonce/")
 
