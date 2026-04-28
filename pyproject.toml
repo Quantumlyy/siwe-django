@@ -1,6 +1,6 @@
 [project]
 name = "siwe-django"
-version = "0.1.0"
+version = "0.2.0"
 description = "Reusable Django authentication for Sign-In with Ethereum."
 readme = "README.md"
 requires-python = ">=3.10"
