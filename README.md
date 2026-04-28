@@ -76,7 +76,8 @@ python manage.py migrate
 - `GET /nonce/`: returns `{ nonce, expiresAt, domain, uri, statement,
   ethereumIdentityKit }` and binds the nonce to the current Django session.
 - `POST /verify/`: accepts `{ message, signature }`, verifies the SIWE message
-  with strict domain, URI, chain, and nonce checks, logs in the user, and returns
+  with strict domain, URI, chain, nonce, and bound optional-field
+  (`Resources`, `Request ID`, `Not Before`) checks, logs in the user, and returns
   user and wallet data.
 - `GET /me/`: returns the current authenticated SIWE identity.
 - `POST /logout/`: destroys the Django session.
@@ -96,6 +97,20 @@ python manage.py migrate
 
 The server consumes each nonce after the first successful verification, so replay
 attempts fail.
+
+### Optional EIP-4361 fields
+
+`siwe_django.services.issue_nonce` accepts `resources`, `request_id`, and
+`not_before` keyword arguments and binds them to the issued nonce. When the
+client signs a message that uses these fields, `verify_siwe_message` enforces
+that:
+
+- the signed `Resources` are a subset of the issued `resources`,
+- the signed `Request ID` matches the bound value,
+- the signed `Not Before` matches the bound timestamp.
+
+Smart contract wallets that sign via EIP-1271 or counterfactually via EIP-6492
+work as long as `RPC_URLS` contains a provider for the wallet's chain.
 
 ## Showcase Demo
 
@@ -196,6 +211,7 @@ All settings live under `SIWE_DJANGO`.
 | `URI` | request root URI | Expected SIWE URI. |
 | `STATEMENT` | `"Sign in with Ethereum."` | Human-readable statement for clients. |
 | `NONCE_TTL_SECONDS` | `300` | Nonce lifetime. |
+| `CLOCK_SKEW_SECONDS` | `60` | Tolerance applied to `Issued At`, `Not Before`, and `Expiration Time` checks. Set to `0` for strict comparison. |
 | `ALLOWED_CHAIN_IDS` | `None` | Optional allow-list for message chain IDs. |
 | `RPC_URLS` | `{}` | Chain ID to RPC URL map for contract wallet and token checks. |
 | `ENS_ENABLED` | `False` | Enable ENS name/avatar lookup. |

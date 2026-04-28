@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from django.contrib.auth import get_user_model
@@ -95,7 +97,13 @@ def request_uri(request) -> str:
     return request.build_absolute_uri("/")
 
 
-def issue_nonce(request=None) -> SiweNonce:
+def issue_nonce(
+    request=None,
+    *,
+    resources: Iterable[str] | None = None,
+    request_id: str = "",
+    not_before: datetime | None = None,
+) -> SiweNonce:
     ttl = int(get_setting("NONCE_TTL_SECONDS"))
     session_key = _ensure_session_key(request) if request is not None else ""
     domain = (
@@ -104,12 +112,16 @@ def issue_nonce(request=None) -> SiweNonce:
         else (get_setting("DOMAIN") or "")
     )
     uri = request_uri(request) if request is not None else (get_setting("URI") or "")
+    resources_list = [str(item) for item in resources] if resources else []
     return SiweNonce.objects.create(
         nonce=generate_nonce(),
         session_key=session_key or "",
         domain=domain,
         uri=uri,
         expires_at=timezone.now() + timezone.timedelta(seconds=ttl),
+        not_before=not_before,
+        request_id=request_id,
+        resources=resources_list,
     )
 
 
@@ -147,6 +159,35 @@ def _consume_nonce(nonce: SiweNonce) -> None:
         raise InvalidNonce("SIWE nonce has already been used.")
 
 
+def _resources_subset(signed: list[str] | None, issued: list[str]) -> bool:
+    if not issued:
+        return True
+    if signed is None:
+        return False
+    issued_set = {str(item) for item in issued}
+    signed_set = {str(item) for item in signed}
+    return signed_set.issubset(issued_set)
+
+
+def _check_optional_fields(siwe_message: SiweMessage, nonce: SiweNonce) -> None:
+    issued_resources = list(nonce.resources or [])
+    if issued_resources and not _resources_subset(
+        siwe_message.resources, issued_resources
+    ):
+        raise InvalidSignature("SIWE message resources are not authorized.")
+    if nonce.not_before is not None:
+        if siwe_message.not_before is None:
+            raise InvalidSignature("SIWE message is missing required Not Before.")
+        signed_not_before = siwe_message.not_before._datetime
+        if abs((signed_not_before - nonce.not_before).total_seconds()) > 1:
+            raise InvalidSignature("SIWE message Not Before does not match nonce.")
+
+
+def _verification_timestamp() -> datetime:
+    skew = int(get_setting("CLOCK_SKEW_SECONDS") or 0)
+    return timezone.now() - timezone.timedelta(seconds=max(skew, 0))
+
+
 def verify_siwe_message(message: str, signature: str, request=None) -> SiweIdentity:
     try:
         siwe_message = SiweMessage.from_message(message)
@@ -161,6 +202,9 @@ def verify_siwe_message(message: str, signature: str, request=None) -> SiweIdent
     nonce = _load_nonce(str(siwe_message.nonce), request)
     expected_domain = nonce.domain or (request_domain(request) if request else None)
     expected_uri = nonce.uri or (request_uri(request) if request else None)
+    expected_request_id = nonce.request_id or None
+
+    _check_optional_fields(siwe_message, nonce)
 
     try:
         siwe_message.verify(
@@ -169,6 +213,8 @@ def verify_siwe_message(message: str, signature: str, request=None) -> SiweIdent
             uri=expected_uri,
             chain_id=chain_id,
             nonce=nonce.nonce,
+            request_id=expected_request_id,
+            timestamp=_verification_timestamp(),
             provider=_provider_for_chain(chain_id),
             strict=True,
         )
@@ -438,15 +484,22 @@ def primary_wallet_for_user(user) -> SiweWallet | None:
 
 
 def eth_identity_kit_nonce_payload(nonce: SiweNonce) -> dict[str, Any]:
+    message_params: dict[str, Any] = {
+        "domain": nonce.domain,
+        "uri": nonce.uri,
+        "version": "1",
+        "nonce": nonce.nonce,
+    }
+    if nonce.not_before is not None:
+        message_params["notBefore"] = nonce.not_before.isoformat()
+    if nonce.request_id:
+        message_params["requestId"] = nonce.request_id
+    if nonce.resources:
+        message_params["resources"] = list(nonce.resources)
     return {
         "statement": get_setting("STATEMENT"),
         "expirationTime": int(get_setting("NONCE_TTL_SECONDS")) * 1000,
-        "messageParams": {
-            "domain": nonce.domain,
-            "uri": nonce.uri,
-            "version": "1",
-            "nonce": nonce.nonce,
-        },
+        "messageParams": message_params,
     }
 
 

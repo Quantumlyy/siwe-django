@@ -182,6 +182,9 @@ class SiweNonce(models.Model):
     domain = models.CharField(max_length=255, blank=True)
     uri = models.URLField(max_length=2048, blank=True)
     expires_at = models.DateTimeField()
+    not_before = models.DateTimeField(blank=True, null=True)
+    request_id = models.CharField(max_length=255, blank=True)
+    resources = models.JSONField(default=list, blank=True)
     consumed_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -23,7 +23,11 @@ def build_message(
     domain: str = "testserver",
     uri: str = "http://testserver/",
     chain_id: int = 1,
+    issued_at: str | None = None,
     expiration_time: str | None = None,
+    not_before: str | None = None,
+    request_id: str | None = None,
+    resources: list[str] | None = None,
 ) -> str:
     message = SiweMessage(
         domain=domain,
@@ -32,8 +36,11 @@ def build_message(
         version="1",
         chain_id=chain_id,
         nonce=nonce,
-        issued_at=iso_now(),
+        issued_at=issued_at or iso_now(),
         expiration_time=expiration_time,
+        not_before=not_before,
+        request_id=request_id,
+        resources=resources,
     )
     return message.prepare_message()
 
