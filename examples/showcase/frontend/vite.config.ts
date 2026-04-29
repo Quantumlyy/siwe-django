@@ -24,4 +24,17 @@ export default defineConfig({
   ssr: {
     noExternal: ["ethereum-identity-kit"],
   },
+  optimizeDeps: {
+    include: [
+      "@reown/appkit-adapter-wagmi",
+      "@wagmi/connectors",
+      "@metamask/sdk",
+      "@metamask/providers",
+      "@metamask/json-rpc-engine",
+      "@metamask/rpc-errors",
+      "@coinbase/wallet-sdk",
+      "eth-rpc-errors",
+      "fast-safe-stringify",
+    ],
+  },
 });
