@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 
 def demo_user_factory(identity, request=None):
     UserModel = get_user_model()
-    username = f"demo_{identity.address[2:14].lower()}"
+    username = f"demo_{identity.address[2:].lower()}"
     user, created = UserModel.objects.get_or_create(username=username)
     if created:
         user.set_unusable_password()
