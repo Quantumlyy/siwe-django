@@ -145,11 +145,6 @@ CSRF_COOKIE_SECURE = _bool("SIWE_DEMO_SECURE_COOKIES")
 if _bool("SIWE_DEMO_USE_X_FORWARDED_PROTO"):
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-PASSWORD_HASHERS = [
-    "django.contrib.auth.hashers.MD5PasswordHasher",
-]
-
-
 def _rpc_urls() -> dict[int, str]:
     urls: dict[int, str] = {}
     for chain_id in (1, 11155111, 31337):
